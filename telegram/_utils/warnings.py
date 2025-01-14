@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 #
 # A library that provides a Python interface to the Telegram Bot API
-# Copyright (C) 2015-2023
+# Copyright (C) 2015-2025
 # Leandro Toledo de Souza <devs@python-telegram-bot.org>
 #
 # This program is free software: you can redistribute it and/or modify
@@ -25,21 +25,30 @@ Warning:
     user. Changes to this module are not considered breaking changes and may not be documented in
     the changelog.
 """
-import warnings  # skipcq: PYL-R0201
-from typing import Type
+import warnings
+from typing import Union
 
 from telegram.warnings import PTBUserWarning
 
 
-def warn(message: str, category: Type[Warning] = PTBUserWarning, stacklevel: int = 0) -> None:
+def warn(
+    message: Union[str, PTBUserWarning],
+    category: type[Warning] = PTBUserWarning,
+    stacklevel: int = 0,
+) -> None:
     """
     Helper function used as a shortcut for warning with default values.
 
     .. versionadded:: 20.0
 
     Args:
-        message (:obj:`str`): Specify the warnings message to pass to ``warnings.warn()``.
-        category (:obj:`Type[Warning]`, optional): Specify the Warning class to pass to
+        message (:obj:`str` | :obj:`PTBUserWarning`): Specify the warnings message to pass to
+            ``warnings.warn()``.
+
+            .. versionchanged:: 21.2
+                Now also accepts a :obj:`PTBUserWarning` instance.
+
+        category (:obj:`type[Warning]`, optional): Specify the Warning class to pass to
             ``warnings.warn()``. Defaults to :class:`telegram.warnings.PTBUserWarning`.
         stacklevel (:obj:`int`, optional): Specify the stacklevel to pass to ``warnings.warn()``.
             Pass the same value as you'd pass directly to ``warnings.warn()``. Defaults to ``0``.

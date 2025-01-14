@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 #
 # A library that provides a Python interface to the Telegram Bot API
-# Copyright (C) 2015-2023
+# Copyright (C) 2015-2025
 # Leandro Toledo de Souza <devs@python-telegram-bot.org>
 #
 # This program is free software: you can redistribute it and/or modify
@@ -18,7 +18,8 @@
 # along with this program.  If not, see [http://www.gnu.org/licenses/].
 """This module contains an object that represents a Telegram InputSticker."""
 
-from typing import TYPE_CHECKING, Optional, Sequence, Tuple, Union
+from collections.abc import Sequence
+from typing import TYPE_CHECKING, Optional, Union
 
 from telegram._files.sticker import MaskPosition
 from telegram._telegramobject import TelegramObject
@@ -36,15 +37,20 @@ class InputSticker(TelegramObject):
 
     .. versionadded:: 20.2
 
+    .. versionchanged:: 21.1
+        As of Bot API 7.2, the new argument :paramref:`format` is a required argument, and thus the
+        order of the arguments has changed.
+
     Args:
-        sticker (:obj:`str` | :term:`file object` | :obj:`bytes` | :class:`pathlib.Path`): The
+        sticker (:obj:`str` | :term:`file object` | :class:`~telegram.InputFile` | :obj:`bytes` \
+            | :class:`pathlib.Path`): The
             added sticker. |uploadinputnopath| Animated and video stickers can't be uploaded via
             HTTP URL.
         emoji_list (Sequence[:obj:`str`]): Sequence of
             :tg-const:`telegram.constants.StickerLimit.MIN_STICKER_EMOJI` -
             :tg-const:`telegram.constants.StickerLimit.MAX_STICKER_EMOJI` emoji associated with the
             sticker.
-        mask_position (:obj:`telegram.MaskPosition`, optional): Position where the mask should be
+        mask_position (:class:`telegram.MaskPosition`, optional): Position where the mask should be
             placed on faces. For ":tg-const:`telegram.constants.StickerType.MASK`" stickers only.
         keywords (Sequence[:obj:`str`], optional): Sequence of
             0-:tg-const:`telegram.constants.StickerLimit.MAX_SEARCH_KEYWORDS` search keywords
@@ -52,30 +58,45 @@ class InputSticker(TelegramObject):
             :tg-const:`telegram.constants.StickerLimit.MAX_KEYWORD_LENGTH` characters. For
             ":tg-const:`telegram.constants.StickerType.REGULAR`" and
             ":tg-const:`telegram.constants.StickerType.CUSTOM_EMOJI`" stickers only.
+        format (:obj:`str`): Format of the added sticker, must be one of
+            :tg-const:`telegram.constants.StickerFormat.STATIC` for a
+            ``.WEBP`` or ``.PNG`` image, :tg-const:`telegram.constants.StickerFormat.ANIMATED`
+            for a ``.TGS`` animation, :tg-const:`telegram.constants.StickerFormat.VIDEO` for a WEBM
+            video.
+
+            .. versionadded:: 21.1
 
     Attributes:
         sticker (:obj:`str` | :class:`telegram.InputFile`): The added sticker.
-        emoji_list (Tuple[:obj:`str`]): Tuple of
+        emoji_list (tuple[:obj:`str`]): Tuple of
             :tg-const:`telegram.constants.StickerLimit.MIN_STICKER_EMOJI` -
             :tg-const:`telegram.constants.StickerLimit.MAX_STICKER_EMOJI` emoji associated with the
             sticker.
-        mask_position (:obj:`telegram.MaskPosition`): Optional. Position where the mask should be
+        mask_position (:class:`telegram.MaskPosition`): Optional. Position where the mask should be
             placed on faces. For ":tg-const:`telegram.constants.StickerType.MASK`" stickers only.
-        keywords (Tuple[:obj:`str`]): Optional. Tuple of
+        keywords (tuple[:obj:`str`]): Optional. Tuple of
             0-:tg-const:`telegram.constants.StickerLimit.MAX_SEARCH_KEYWORDS` search keywords
             for the sticker with the total length of up to
             :tg-const:`telegram.constants.StickerLimit.MAX_KEYWORD_LENGTH` characters. For
             ":tg-const:`telegram.constants.StickerType.REGULAR`" and
             ":tg-const:`telegram.constants.StickerType.CUSTOM_EMOJI`" stickers only.
+            ":tg-const:`telegram.constants.StickerType.CUSTOM_EMOJI`" stickers only.
+        format (:obj:`str`): Format of the added sticker, must be one of
+            :tg-const:`telegram.constants.StickerFormat.STATIC` for a
+            ``.WEBP`` or ``.PNG`` image, :tg-const:`telegram.constants.StickerFormat.ANIMATED`
+            for a ``.TGS`` animation, :tg-const:`telegram.constants.StickerFormat.VIDEO` for a WEBM
+            video.
 
+            .. versionadded:: 21.1
     """
 
-    __slots__ = ("sticker", "emoji_list", "mask_position", "keywords")
+    __slots__ = ("emoji_list", "format", "keywords", "mask_position", "sticker")
 
     def __init__(
         self,
         sticker: FileInput,
         emoji_list: Sequence[str],
+        format: str,  # pylint: disable=redefined-builtin
         mask_position: Optional[MaskPosition] = None,
         keywords: Optional[Sequence[str]] = None,
         *,
@@ -90,8 +111,9 @@ class InputSticker(TelegramObject):
             local_mode=True,
             attach=True,
         )
-        self.emoji_list: Tuple[str, ...] = parse_sequence_arg(emoji_list)
+        self.emoji_list: tuple[str, ...] = parse_sequence_arg(emoji_list)
+        self.format: str = format
         self.mask_position: Optional[MaskPosition] = mask_position
-        self.keywords: Tuple[str, ...] = parse_sequence_arg(keywords)
+        self.keywords: tuple[str, ...] = parse_sequence_arg(keywords)
 
         self._freeze()

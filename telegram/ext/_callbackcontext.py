@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 #
 # A library that provides a Python interface to the Telegram Bot API
-# Copyright (C) 2015-2023
+# Copyright (C) 2015-2025
 # Leandro Toledo de Souza <devs@python-telegram-bot.org>
 #
 # This program is free software: you can redistribute it and/or modify
@@ -17,20 +17,10 @@
 # You should have received a copy of the GNU Lesser Public License
 # along with this program.  If not, see [http://www.gnu.org/licenses/].
 """This module contains the CallbackContext class."""
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Awaitable,
-    Dict,
-    Generator,
-    Generic,
-    List,
-    Match,
-    NoReturn,
-    Optional,
-    Type,
-    Union,
-)
+
+from collections.abc import Awaitable, Generator
+from re import Match
+from typing import TYPE_CHECKING, Any, Generic, NoReturn, Optional, TypeVar, Union
 
 from telegram._callbackquery import CallbackQuery
 from telegram._update import Update
@@ -48,6 +38,9 @@ _STORING_DATA_WIKI = (
     "https://github.com/python-telegram-bot/python-telegram-bot"
     "/wiki/Storing-bot%2C-user-and-chat-related-data"
 )
+
+# something like poor mans "typing.Self" for py<3.11
+ST = TypeVar("ST", bound="CallbackContext[Any, Any, Any, Any]")
 
 
 class CallbackContext(Generic[BT, UD, CD, BD]):
@@ -101,11 +94,11 @@ class CallbackContext(Generic[BT, UD, CD, BD]):
         coroutine (:term:`awaitable`): Optional. Only present in error handlers if the
             error was caused by an awaitable run with :meth:`Application.create_task` or a handler
             callback with :attr:`block=False <BaseHandler.block>`.
-        matches (List[:meth:`re.Match <re.Match.expand>`]): Optional. If the associated update
+        matches (list[:meth:`re.Match <re.Match.expand>`]): Optional. If the associated update
             originated from a :class:`filters.Regex`, this will contain a list of match objects for
             every pattern where ``re.search(pattern, string)`` returned a match. Note that filters
             short circuit, so combined regex filters will not always be evaluated.
-        args (List[:obj:`str`]): Optional. Arguments passed to a command if the associated update
+        args (list[:obj:`str`]): Optional. Arguments passed to a command if the associated update
             is handled by :class:`telegram.ext.CommandHandler`, :class:`telegram.ext.PrefixHandler`
             or :class:`telegram.ext.StringCommandHandler`. It contains a list of the words in the
             text after the command, using any whitespace string as a delimiter.
@@ -121,38 +114,38 @@ class CallbackContext(Generic[BT, UD, CD, BD]):
     """
 
     __slots__ = (
+        "__dict__",
         "_application",
         "_chat_id",
         "_user_id",
         "args",
-        "matches",
+        "coroutine",
         "error",
         "job",
-        "coroutine",
-        "__dict__",
+        "matches",
     )
 
     def __init__(
-        self: "CCT",
-        application: "Application[BT, CCT, UD, CD, BD, Any]",
+        self: ST,
+        application: "Application[BT, ST, UD, CD, BD, Any]",
         chat_id: Optional[int] = None,
         user_id: Optional[int] = None,
     ):
-        self._application: Application[BT, CCT, UD, CD, BD, Any] = application
+        self._application: Application[BT, ST, UD, CD, BD, Any] = application
         self._chat_id: Optional[int] = chat_id
         self._user_id: Optional[int] = user_id
-        self.args: Optional[List[str]] = None
-        self.matches: Optional[List[Match[str]]] = None
+        self.args: Optional[list[str]] = None
+        self.matches: Optional[list[Match[str]]] = None
         self.error: Optional[Exception] = None
-        self.job: Optional[Job[CCT]] = None
+        self.job: Optional[Job[Any]] = None
         self.coroutine: Optional[
             Union[Generator[Optional[Future[object]], None, Any], Awaitable[Any]]
         ] = None
 
     @property
-    def application(self) -> "Application[BT, CCT, UD, CD, BD, Any]":
+    def application(self) -> "Application[BT, ST, UD, CD, BD, Any]":
         """:class:`telegram.ext.Application`: The application associated with this context."""
-        return self._application
+        return self._application  # type: ignore[return-value]
 
     @property
     def bot_data(self) -> BD:
@@ -165,7 +158,7 @@ class CallbackContext(Generic[BT, UD, CD, BD]):
         return self.application.bot_data
 
     @bot_data.setter
-    def bot_data(self, value: object) -> NoReturn:
+    def bot_data(self, _: object) -> NoReturn:
         raise AttributeError(
             f"You can not assign a new value to bot_data, see {_STORING_DATA_WIKI}"
         )
@@ -192,7 +185,7 @@ class CallbackContext(Generic[BT, UD, CD, BD]):
         return None
 
     @chat_data.setter
-    def chat_data(self, value: object) -> NoReturn:
+    def chat_data(self, _: object) -> NoReturn:
         raise AttributeError(
             f"You can not assign a new value to chat_data, see {_STORING_DATA_WIKI}"
         )
@@ -214,7 +207,7 @@ class CallbackContext(Generic[BT, UD, CD, BD]):
         return None
 
     @user_data.setter
-    def user_data(self, value: object) -> NoReturn:
+    def user_data(self, _: object) -> NoReturn:
         raise AttributeError(
             f"You can not assign a new value to user_data, see {_STORING_DATA_WIKI}"
         )
@@ -236,11 +229,13 @@ class CallbackContext(Generic[BT, UD, CD, BD]):
                 await self.application.persistence.refresh_bot_data(self.bot_data)
             if self.application.persistence.store_data.chat_data and self._chat_id is not None:
                 await self.application.persistence.refresh_chat_data(
-                    chat_id=self._chat_id, chat_data=self.chat_data  # type: ignore[arg-type]
+                    chat_id=self._chat_id,
+                    chat_data=self.chat_data,  # type: ignore[arg-type]
                 )
             if self.application.persistence.store_data.user_data and self._user_id is not None:
                 await self.application.persistence.refresh_user_data(
-                    user_id=self._user_id, user_data=self.user_data  # type: ignore[arg-type]
+                    user_id=self._user_id,
+                    user_data=self.user_data,  # type: ignore[arg-type]
                 )
 
     def drop_callback_data(self, callback_query: CallbackQuery) -> None:
@@ -270,11 +265,13 @@ class CallbackContext(Generic[BT, UD, CD, BD]):
                 )
             self.bot.callback_data_cache.drop_data(callback_query)
         else:
-            raise RuntimeError("telegram.Bot does not allow for arbitrary callback data.")
+            raise RuntimeError(  # noqa: TRY004
+                "telegram.Bot does not allow for arbitrary callback data."
+            )
 
     @classmethod
     def from_error(
-        cls: Type["CCT"],
+        cls: type["CCT"],
         update: object,
         error: Exception,
         application: "Application[BT, CCT, UD, CD, BD, Any]",
@@ -327,7 +324,7 @@ class CallbackContext(Generic[BT, UD, CD, BD]):
 
     @classmethod
     def from_update(
-        cls: Type["CCT"],
+        cls: type["CCT"],
         update: object,
         application: "Application[Any, CCT, Any, Any, Any, Any]",
     ) -> "CCT":
@@ -357,7 +354,7 @@ class CallbackContext(Generic[BT, UD, CD, BD]):
 
     @classmethod
     def from_job(
-        cls: Type["CCT"],
+        cls: type["CCT"],
         job: "Job[CCT]",
         application: "Application[Any, CCT, Any, Any, Any, Any]",
     ) -> "CCT":
@@ -379,11 +376,11 @@ class CallbackContext(Generic[BT, UD, CD, BD]):
         self.job = job
         return self
 
-    def update(self, data: Dict[str, object]) -> None:
+    def update(self, data: dict[str, object]) -> None:
         """Updates ``self.__slots__`` with the passed data.
 
         Args:
-            data (Dict[:obj:`str`, :obj:`object`]): The data.
+            data (dict[:obj:`str`, :obj:`object`]): The data.
         """
         for key, value in data.items():
             setattr(self, key, value)
@@ -394,7 +391,7 @@ class CallbackContext(Generic[BT, UD, CD, BD]):
         return self._application.bot
 
     @property
-    def job_queue(self) -> Optional["JobQueue[CCT]"]:
+    def job_queue(self) -> Optional["JobQueue[ST]"]:
         """
         :class:`telegram.ext.JobQueue`: The :class:`JobQueue` used by the
         :class:`telegram.ext.Application`.

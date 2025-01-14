@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 #
 # A library that provides a Python interface to the Telegram Bot API
-# Copyright (C) 2015-2023
+# Copyright (C) 2015-2025
 # Leandro Toledo de Souza <devs@python-telegram-bot.org>
 #
 # This program is free software: you can redistribute it and/or modify
@@ -137,19 +137,19 @@ class ChatPermissions(TelegramObject):
     """
 
     __slots__ = (
-        "can_send_other_messages",
-        "can_invite_users",
-        "can_send_polls",
-        "can_send_messages",
-        "can_change_info",
-        "can_pin_messages",
         "can_add_web_page_previews",
+        "can_change_info",
+        "can_invite_users",
         "can_manage_topics",
+        "can_pin_messages",
         "can_send_audios",
         "can_send_documents",
+        "can_send_messages",
+        "can_send_other_messages",
         "can_send_photos",
-        "can_send_videos",
+        "can_send_polls",
         "can_send_video_notes",
+        "can_send_videos",
         "can_send_voice_notes",
     )
 
@@ -231,12 +231,9 @@ class ChatPermissions(TelegramObject):
         return cls(*(14 * (False,)))
 
     @classmethod
-    def de_json(cls, data: Optional[JSONDict], bot: "Bot") -> Optional["ChatPermissions"]:
+    def de_json(cls, data: JSONDict, bot: Optional["Bot"] = None) -> "ChatPermissions":
         """See :meth:`telegram.TelegramObject.de_json`."""
         data = cls._parse_data(data)
-
-        if not data:
-            return None
 
         api_kwargs = {}
         # This is a deprecated field that TG still returns for backwards compatibility

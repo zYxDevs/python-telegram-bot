@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 #
 # A library that provides a Python interface to the Telegram Bot API
-# Copyright (C) 2015-2023
+# Copyright (C) 2015-2025
 # Leandro Toledo de Souza <devs@python-telegram-bot.org>
 #
 # This program is free software: you can redistribute it and/or modify
@@ -67,7 +67,7 @@ def false_update(request):
     return Update(update_id=2, **request.param)
 
 
-@pytest.fixture()
+@pytest.fixture
 def poll_answer(bot):
     return Update(0, poll_answer=PollAnswer(1, [0, 1], User(2, "test user", False), Chat(1, "")))
 

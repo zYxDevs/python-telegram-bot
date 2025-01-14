@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 #
 # A library that provides a Python interface to the Telegram Bot API
-# Copyright (C) 2015-2023
+# Copyright (C) 2015-2025
 # Leandro Toledo de Souza <devs@python-telegram-bot.org>
 #
 # This program is free software: you can redistribute it and/or modify
@@ -88,15 +88,15 @@ class InlineQueryResultContact(InlineQueryResult):
     """
 
     __slots__ = (
-        "reply_markup",
-        "thumbnail_width",
-        "thumbnail_height",
-        "vcard",
         "first_name",
+        "input_message_content",
         "last_name",
         "phone_number",
-        "input_message_content",
+        "reply_markup",
+        "thumbnail_height",
         "thumbnail_url",
+        "thumbnail_width",
+        "vcard",
     )
 
     def __init__(

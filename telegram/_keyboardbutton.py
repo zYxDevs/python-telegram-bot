@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 #
 # A library that provides a Python interface to the Telegram Bot API
-# Copyright (C) 2015-2023
+# Copyright (C) 2015-2025
 # Leandro Toledo de Souza <devs@python-telegram-bot.org>
 #
 # This program is free software: you can redistribute it and/or modify
@@ -21,8 +21,9 @@
 from typing import TYPE_CHECKING, Optional
 
 from telegram._keyboardbuttonpolltype import KeyboardButtonPollType
-from telegram._keyboardbuttonrequest import KeyboardButtonRequestChat, KeyboardButtonRequestUser
+from telegram._keyboardbuttonrequest import KeyboardButtonRequestChat, KeyboardButtonRequestUsers
 from telegram._telegramobject import TelegramObject
+from telegram._utils.argumentparsing import de_json_optional
 from telegram._utils.types import JSONDict
 from telegram._webappinfo import WebAppInfo
 
@@ -32,12 +33,14 @@ if TYPE_CHECKING:
 
 class KeyboardButton(TelegramObject):
     """
-    This object represents one button of the reply keyboard. For simple text buttons, :obj:`str`
+    This object represents one button of the reply keyboard. At most one of the optional fields
+    must be used to specify type of the button. For simple text buttons, :obj:`str`
     can be used instead of this object to specify text of the button.
 
     Objects of this class are comparable in terms of equality. Two objects of this class are
     considered equal, if their :attr:`text`, :attr:`request_contact`, :attr:`request_location`,
-    :attr:`request_poll`, :attr:`web_app`, :attr:`request_user` and :attr:`request_chat` are equal.
+    :attr:`request_poll`, :attr:`web_app`, :attr:`request_users` and :attr:`request_chat` are
+    equal.
 
     Note:
         * Optional fields are mutually exclusive.
@@ -47,15 +50,17 @@ class KeyboardButton(TelegramObject):
           January, 2020. Older clients will display unsupported message.
         * :attr:`web_app` option will only work in Telegram versions released after 16 April, 2022.
           Older clients will display unsupported message.
-        * :attr:`request_user` and :attr:`request_chat` options will only work in Telegram
+        * :attr:`request_users` and :attr:`request_chat` options will only work in Telegram
           versions released after 3 February, 2023. Older clients will display unsupported
           message.
 
+    .. versionchanged:: 21.0
+       Removed deprecated argument and attribute ``request_user``.
     .. versionchanged:: 20.0
        :attr:`web_app` is considered as well when comparing objects of this type in terms of
        equality.
     .. versionchanged:: 20.5
-       :attr:`request_user` and :attr:`request_chat` are considered as well when
+       :attr:`request_users` and :attr:`request_chat` are considered as well when
        comparing objects of this type in terms of equality.
 
     Args:
@@ -74,12 +79,13 @@ class KeyboardButton(TelegramObject):
             Available in private chats only.
 
             .. versionadded:: 20.0
-        request_user (:class:`KeyboardButtonRequestUser`, optional): If specified, pressing the
+
+        request_users (:class:`KeyboardButtonRequestUsers`, optional): If specified, pressing the
             button will open a list of suitable users. Tapping on any user will send its
-            identifier to the bot in a :attr:`telegram.Message.user_shared` service message.
+            identifier to the bot in a :attr:`telegram.Message.users_shared` service message.
             Available in private chats only.
 
-            .. versionadded:: 20.1
+            .. versionadded:: 20.8
         request_chat (:class:`KeyboardButtonRequestChat`, optional): If specified, pressing the
             button will open a list of suitable chats. Tapping on a chat will send its
             identifier to the bot in a :attr:`telegram.Message.chat_shared` service message.
@@ -102,12 +108,12 @@ class KeyboardButton(TelegramObject):
             Available in private chats only.
 
             .. versionadded:: 20.0
-        request_user (:class:`KeyboardButtonRequestUser`): Optional. If specified, pressing the
+        request_users (:class:`KeyboardButtonRequestUsers`): Optional. If specified, pressing the
             button will open a list of suitable users. Tapping on any user will send its
-            identifier to the bot in a :attr:`telegram.Message.user_shared` service message.
+            identifier to the bot in a :attr:`telegram.Message.users_shared` service message.
             Available in private chats only.
 
-            .. versionadded:: 20.1
+            .. versionadded:: 20.8
         request_chat (:class:`KeyboardButtonRequestChat`): Optional. If specified, pressing the
             button will open a list of suitable chats. Tapping on a chat will send its
             identifier to the bot in a :attr:`telegram.Message.chat_shared` service message.
@@ -117,13 +123,13 @@ class KeyboardButton(TelegramObject):
     """
 
     __slots__ = (
-        "request_location",
+        "request_chat",
         "request_contact",
+        "request_location",
         "request_poll",
+        "request_users",
         "text",
         "web_app",
-        "request_user",
-        "request_chat",
     )
 
     def __init__(
@@ -133,12 +139,13 @@ class KeyboardButton(TelegramObject):
         request_location: Optional[bool] = None,
         request_poll: Optional[KeyboardButtonPollType] = None,
         web_app: Optional[WebAppInfo] = None,
-        request_user: Optional[KeyboardButtonRequestUser] = None,
         request_chat: Optional[KeyboardButtonRequestChat] = None,
+        request_users: Optional[KeyboardButtonRequestUsers] = None,
         *,
         api_kwargs: Optional[JSONDict] = None,
     ):
         super().__init__(api_kwargs=api_kwargs)
+
         # Required
         self.text: str = text
         # Optionals
@@ -146,7 +153,7 @@ class KeyboardButton(TelegramObject):
         self.request_location: Optional[bool] = request_location
         self.request_poll: Optional[KeyboardButtonPollType] = request_poll
         self.web_app: Optional[WebAppInfo] = web_app
-        self.request_user: Optional[KeyboardButtonRequestUser] = request_user
+        self.request_users: Optional[KeyboardButtonRequestUsers] = request_users
         self.request_chat: Optional[KeyboardButtonRequestChat] = request_chat
 
         self._id_attrs = (
@@ -155,23 +162,32 @@ class KeyboardButton(TelegramObject):
             self.request_location,
             self.request_poll,
             self.web_app,
-            self.request_user,
+            self.request_users,
             self.request_chat,
         )
 
         self._freeze()
 
     @classmethod
-    def de_json(cls, data: Optional[JSONDict], bot: "Bot") -> Optional["KeyboardButton"]:
+    def de_json(cls, data: JSONDict, bot: Optional["Bot"] = None) -> "KeyboardButton":
         """See :meth:`telegram.TelegramObject.de_json`."""
         data = cls._parse_data(data)
 
-        if not data:
-            return None
+        data["request_poll"] = de_json_optional(
+            data.get("request_poll"), KeyboardButtonPollType, bot
+        )
+        data["request_users"] = de_json_optional(
+            data.get("request_users"), KeyboardButtonRequestUsers, bot
+        )
+        data["request_chat"] = de_json_optional(
+            data.get("request_chat"), KeyboardButtonRequestChat, bot
+        )
+        data["web_app"] = de_json_optional(data.get("web_app"), WebAppInfo, bot)
 
-        data["request_poll"] = KeyboardButtonPollType.de_json(data.get("request_poll"), bot)
-        data["request_user"] = KeyboardButtonRequestUser.de_json(data.get("request_user"), bot)
-        data["request_chat"] = KeyboardButtonRequestChat.de_json(data.get("request_chat"), bot)
-        data["web_app"] = WebAppInfo.de_json(data.get("web_app"), bot)
+        api_kwargs = {}
+        # This is a deprecated field that TG still returns for backwards compatibility
+        # Let's filter it out to speed up the de-json process
+        if request_user := data.get("request_user"):
+            api_kwargs = {"request_user": request_user}
 
-        return super().de_json(data=data, bot=bot)
+        return super()._de_json(data=data, bot=bot, api_kwargs=api_kwargs)

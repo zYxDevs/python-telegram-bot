@@ -16,6 +16,8 @@
 
 .. |editreplymarkup| replace:: It is currently only possible to edit messages without :attr:`telegram.Message.reply_markup` or with inline keyboards.
 
+.. |bcid_edit_time| replace:: Note that business messages that were not sent by the bot and do not contain an inline keyboard can only be edited within *48 hours* from the time they were sent.
+
 .. |toapikwargsbase| replace:: These arguments are also considered by :meth:`~telegram.TelegramObject.to_dict` and :meth:`~telegram.TelegramObject.to_json`, i.e. when passing objects to Telegram. Passing them to Telegram is however not guaranteed to work for all kinds of objects, e.g. this will fail for objects that can not directly be JSON serialized.
 
 .. |toapikwargsarg| replace:: Arbitrary keyword arguments. Can be used to store data for which there are no dedicated attributes. |toapikwargsbase|
@@ -58,6 +60,40 @@
 
 .. |removed_thumb_note| replace:: Removed the deprecated argument and attribute ``thumb``.
 
-.. |removed_thumb_url_note| replace:: Removed the deprecated argument and attribute ``thumb_url``.
+.. |removed_thumb_url_note| replace:: Removed the deprecated argument and attribute ``thumb_url`` which made thumbnail_url mandatory.
 
 .. |removed_thumb_wildcard_note| replace:: Removed the deprecated arguments and attributes ``thumb_*``.
+
+.. |thumbnail_url_mandatory| replace:: Removal of the deprecated argument ``thumb_url`` made ``thumbnail_url`` mandatory.
+
+.. |async_context_manager| replace:: Asynchronous context manager which
+
+.. |reply_parameters| replace:: Description of the message to reply to.
+
+.. |rtm_aswr_deprecated| replace:: replacing this argument. PTB will automatically convert this argument to that one, but you should update your code to use the new argument.
+
+.. |keyword_only_arg| replace:: This argument is now a keyword-only argument.
+
+.. |text_html| replace:: The return value of this property is a best-effort approach. Unfortunately, it can not be guaranteed that sending a message with the returned string will render in the same way as the original message produces the same :attr:`~telegram.Message.entities`/:attr:`~telegram.Message.caption_entities` as the original message. For example, Telegram recommends that entities of type :attr:`~telegram.MessageEntity.BLOCKQUOTE` and :attr:`~telegram.MessageEntity.PRE` *should* start and end on a new line, but does not enforce this and leaves rendering decisions up to the clients.
+
+.. |text_markdown| replace:: |text_html| Moreover, markdown formatting is inherently less expressive than HTML, so some edge cases may not be coverable at all. For example, markdown formatting can not specify two consecutive block quotes without a blank line in between, but HTML can.
+
+.. |reply_quote| replace:: If set to :obj:`True`, the reply is sent as an actual reply to this message. If ``reply_to_message_id`` is passed, this parameter will be ignored. Default: :obj:`True` in group chats and :obj:`False` in private chats.
+
+.. |do_quote| replace:: If set to :obj:`True`, the replied message is quoted. For a dict, it must be the output of :meth:`~telegram.Message.build_reply_arguments` to specify exact ``reply_parameters``. If ``reply_to_message_id`` or ``reply_parameters`` are passed, this parameter will be ignored. Default: :obj:`True` in group chats and :obj:`False` in private chats.
+
+.. |non_optional_story_argument| replace:: As of this version, this argument is now required. In accordance with our `stability policy <https://docs.python-telegram-bot.org/en/stable/stability_policy.html>`__, the signature will be kept as optional for now, though they are mandatory and an error will be raised if you don't pass it.
+
+.. |business_id_str| replace:: Unique identifier of the business connection on behalf of which the message will be sent.
+
+.. |business_id_str_edit| replace:: Unique identifier of the business connection on behalf of which the message to be edited was sent
+
+.. |message_effect_id| replace:: Unique identifier of the message effect to be added to the message; for private chats only.
+
+.. |show_cap_above_med| replace:: :obj:`True`, if the caption must be shown above the message media.
+
+.. |tg_stars| replace:: `Telegram Stars <https://t.me/BotNews/90>`__
+
+.. |allow_paid_broadcast| replace:: Pass True to allow up to :tg-const:`telegram.constants.FloodLimit.PAID_MESSAGES_PER_SECOND` messages per second, ignoring `broadcasting limits <https://core.telegram.org/bots/faq#how-can-i-message-all-of-my-bot-39s-subscribers-at-once>`__ for a fee of 0.1 Telegram Stars per message. The relevant Stars will be withdrawn from the bot's balance.
+
+.. |tz-naive-dtms| replace:: For timezone naive :obj:`datetime.datetime` objects, the default timezone of the bot will be used, which is UTC unless :attr:`telegram.ext.Defaults.tzinfo` is used.

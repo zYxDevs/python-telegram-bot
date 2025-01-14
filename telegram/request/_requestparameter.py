@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 #
 #  A library that provides a Python interface to the Telegram Bot API
-#  Copyright (C) 2015-2023
+#  Copyright (C) 2015-2025
 #  Leandro Toledo de Souza <devs@python-telegram-bot.org>
 #
 #  This program is free software: you can redistribute it and/or modify
@@ -17,13 +17,14 @@
 #  You should have received a copy of the GNU Lesser Public License
 #  along with this program.  If not, see [http://www.gnu.org/licenses/].
 """This module contains a class that describes a single parameter of a request to the Bot API."""
+import datetime as dtm
 import json
+from collections.abc import Sequence
 from dataclasses import dataclass
-from datetime import datetime
-from typing import List, Optional, Sequence, Tuple, final
+from typing import Optional, final
 
 from telegram._files.inputfile import InputFile
-from telegram._files.inputmedia import InputMedia
+from telegram._files.inputmedia import InputMedia, InputPaidMedia
 from telegram._files.inputsticker import InputSticker
 from telegram._telegramobject import TelegramObject
 from telegram._utils.datetime import to_timestamp
@@ -47,21 +48,21 @@ class RequestParameter:
     Args:
         name (:obj:`str`): The name of the parameter.
         value (:obj:`object` | :obj:`None`): The value of the parameter. Must be JSON-dumpable.
-        input_files (List[:class:`telegram.InputFile`], optional): A list of files that should be
+        input_files (list[:class:`telegram.InputFile`], optional): A list of files that should be
             uploaded along with this parameter.
 
     Attributes:
         name (:obj:`str`): The name of the parameter.
         value (:obj:`object` | :obj:`None`): The value of the parameter.
-        input_files (List[:class:`telegram.InputFile` | :obj:`None`): A list of files that should
+        input_files (list[:class:`telegram.InputFile` | :obj:`None`): A list of files that should
             be uploaded along with this parameter.
     """
 
-    __slots__ = ("name", "value", "input_files")
+    __slots__ = ("input_files", "name", "value")
 
     name: str
     value: object
-    input_files: Optional[List[InputFile]]
+    input_files: Optional[list[InputFile]]
 
     @property
     def json_value(self) -> Optional[str]:
@@ -77,7 +78,11 @@ class RequestParameter:
 
     @property
     def multipart_data(self) -> Optional[UploadFileDict]:
-        """A dict with the file data to upload, if any."""
+        """A dict with the file data to upload, if any.
+
+        .. versionchanged:: 21.5
+            Content may now be a file handle.
+        """
         if not self.input_files:
             return None
         return {
@@ -88,9 +93,9 @@ class RequestParameter:
     @staticmethod
     def _value_and_input_files_from_input(  # pylint: disable=too-many-return-statements
         value: object,
-    ) -> Tuple[object, List[InputFile]]:
+    ) -> tuple[object, list[InputFile]]:
         """Converts `value` into something that we can json-dump. Returns two values:
-        1. the JSON-dumpable value. Maybe be `None` in case the value is an InputFile which must
+        1. the JSON-dumpable value. May be `None` in case the value is an InputFile which must
            not be uploaded via an attach:// URI
         2. A list of InputFiles that should be uploaded for this value
 
@@ -108,7 +113,7 @@ class RequestParameter:
         * if a user passes a custom enum, it's unlikely that we can actually properly handle it
           even with some special casing.
         """
-        if isinstance(value, datetime):
+        if isinstance(value, dtm.datetime):
             return to_timestamp(value), []
         if isinstance(value, StringEnum):
             return value.value, []
@@ -117,7 +122,7 @@ class RequestParameter:
                 return value.attach_uri, [value]
             return None, [value]
 
-        if isinstance(value, InputMedia) and isinstance(value.media, InputFile):
+        if isinstance(value, (InputMedia, InputPaidMedia)) and isinstance(value.media, InputFile):
             # We call to_dict and change the returned dict instead of overriding
             # value.media in case the same value is reused for another request
             data = value.to_dict()

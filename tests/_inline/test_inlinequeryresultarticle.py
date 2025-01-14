@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 #
 # A library that provides a Python interface to the Telegram Bot API
-# Copyright (C) 2015-2023
+# Copyright (C) 2015-2025
 # Leandro Toledo de Souza <devs@python-telegram-bot.org>
 #
 # This program is free software: you can redistribute it and/or modify
@@ -22,30 +22,33 @@ import pytest
 from telegram import (
     InlineKeyboardButton,
     InlineKeyboardMarkup,
+    InlineQueryResult,
     InlineQueryResultArticle,
     InlineQueryResultAudio,
     InputTextMessageContent,
 )
+from telegram.constants import InlineQueryResultType
+from telegram.warnings import PTBDeprecationWarning
 from tests.auxil.slots import mro_slots
 
 
 @pytest.fixture(scope="module")
 def inline_query_result_article():
     return InlineQueryResultArticle(
-        TestInlineQueryResultArticleBase.id_,
-        TestInlineQueryResultArticleBase.title,
-        input_message_content=TestInlineQueryResultArticleBase.input_message_content,
-        reply_markup=TestInlineQueryResultArticleBase.reply_markup,
-        url=TestInlineQueryResultArticleBase.url,
-        hide_url=TestInlineQueryResultArticleBase.hide_url,
-        description=TestInlineQueryResultArticleBase.description,
-        thumbnail_url=TestInlineQueryResultArticleBase.thumbnail_url,
-        thumbnail_height=TestInlineQueryResultArticleBase.thumbnail_height,
-        thumbnail_width=TestInlineQueryResultArticleBase.thumbnail_width,
+        InlineQueryResultArticleTestBase.id_,
+        InlineQueryResultArticleTestBase.title,
+        input_message_content=InlineQueryResultArticleTestBase.input_message_content,
+        reply_markup=InlineQueryResultArticleTestBase.reply_markup,
+        url=InlineQueryResultArticleTestBase.url,
+        hide_url=InlineQueryResultArticleTestBase.hide_url,
+        description=InlineQueryResultArticleTestBase.description,
+        thumbnail_url=InlineQueryResultArticleTestBase.thumbnail_url,
+        thumbnail_height=InlineQueryResultArticleTestBase.thumbnail_height,
+        thumbnail_width=InlineQueryResultArticleTestBase.thumbnail_width,
     )
 
 
-class TestInlineQueryResultArticleBase:
+class InlineQueryResultArticleTestBase:
     id_ = "id"
     type_ = "article"
     title = "title"
@@ -59,7 +62,7 @@ class TestInlineQueryResultArticleBase:
     thumbnail_width = 15
 
 
-class TestInlineQueryResultArticleWithoutRequest(TestInlineQueryResultArticleBase):
+class TestInlineQueryResultArticleWithoutRequest(InlineQueryResultArticleTestBase):
     def test_slot_behaviour(self, inline_query_result_article):
         inst = inline_query_result_article
         for attr in inst.__slots__:
@@ -116,6 +119,26 @@ class TestInlineQueryResultArticleWithoutRequest(TestInlineQueryResultArticleBas
             == inline_query_result_article.thumbnail_width
         )
 
+    def test_type_enum_conversion(self):
+        # Since we have a lot of different test files for all the result types, we test this
+        # conversion only here. It is independent of the specific class
+        assert (
+            type(
+                InlineQueryResult(
+                    id="id",
+                    type="article",
+                ).type
+            )
+            is InlineQueryResultType
+        )
+        assert (
+            InlineQueryResult(
+                id="id",
+                type="unknown",
+            ).type
+            == "unknown"
+        )
+
     def test_equality(self):
         a = InlineQueryResultArticle(self.id_, self.title, self.input_message_content)
         b = InlineQueryResultArticle(self.id_, self.title, self.input_message_content)
@@ -135,3 +158,31 @@ class TestInlineQueryResultArticleWithoutRequest(TestInlineQueryResultArticleBas
 
         assert a != e
         assert hash(a) != hash(e)
+
+    def test_deprecation_warning_for_hide_url(self):
+        with pytest.warns(PTBDeprecationWarning, match="The argument `hide_url`") as record:
+            InlineQueryResultArticle(
+                self.id_, self.title, self.input_message_content, hide_url=True
+            )
+
+        assert record[0].filename == __file__, "wrong stacklevel!"
+
+        with pytest.warns(PTBDeprecationWarning, match="The argument `hide_url`") as record:
+            InlineQueryResultArticle(
+                self.id_, self.title, self.input_message_content, hide_url=False
+            )
+
+        assert record[0].filename == __file__, "wrong stacklevel!"
+
+        assert (
+            InlineQueryResultArticle(
+                self.id_, self.title, self.input_message_content, hide_url=True
+            ).hide_url
+            is True
+        )
+        assert (
+            InlineQueryResultArticle(
+                self.id_, self.title, self.input_message_content, hide_url=False
+            ).hide_url
+            is False
+        )

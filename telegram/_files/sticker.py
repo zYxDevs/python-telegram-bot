@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 #
 # A library that provides a Python interface to the Telegram Bot API
-# Copyright (C) 2015-2023
+# Copyright (C) 2015-2025
 # Leandro Toledo de Souza <devs@python-telegram-bot.org>
 #
 # This program is free software: you can redistribute it and/or modify
@@ -17,14 +17,16 @@
 # You should have received a copy of the GNU Lesser Public License
 # along with this program.  If not, see [http://www.gnu.org/licenses/].
 """This module contains objects that represent stickers."""
-from typing import TYPE_CHECKING, Final, Optional, Sequence, Tuple
+from collections.abc import Sequence
+from typing import TYPE_CHECKING, Final, Optional
 
 from telegram import constants
 from telegram._files._basethumbedmedium import _BaseThumbedMedium
 from telegram._files.file import File
 from telegram._files.photosize import PhotoSize
 from telegram._telegramobject import TelegramObject
-from telegram._utils.argumentparsing import parse_sequence_arg
+from telegram._utils import enum
+from telegram._utils.argumentparsing import de_json_optional, de_list_optional, parse_sequence_arg
 from telegram._utils.types import JSONDict
 
 if TYPE_CHECKING:
@@ -129,17 +131,17 @@ class Sticker(_BaseThumbedMedium):
     """
 
     __slots__ = (
+        "custom_emoji_id",
         "emoji",
         "height",
         "is_animated",
         "is_video",
         "mask_position",
-        "set_name",
-        "width",
-        "premium_animation",
-        "type",
-        "custom_emoji_id",
         "needs_repainting",
+        "premium_animation",
+        "set_name",
+        "type",
+        "width",
     )
 
     def __init__(
@@ -175,7 +177,7 @@ class Sticker(_BaseThumbedMedium):
             self.height: int = height
             self.is_animated: bool = is_animated
             self.is_video: bool = is_video
-            self.type: str = type
+            self.type: str = enum.get_member(constants.StickerType, type, type)
             # Optional
             self.emoji: Optional[str] = emoji
             self.set_name: Optional[str] = set_name
@@ -192,16 +194,13 @@ class Sticker(_BaseThumbedMedium):
     """:const:`telegram.constants.StickerType.CUSTOM_EMOJI`"""
 
     @classmethod
-    def de_json(cls, data: Optional[JSONDict], bot: "Bot") -> Optional["Sticker"]:
+    def de_json(cls, data: JSONDict, bot: Optional["Bot"] = None) -> "Sticker":
         """See :meth:`telegram.TelegramObject.de_json`."""
         data = cls._parse_data(data)
 
-        if not data:
-            return None
-
-        data["thumbnail"] = PhotoSize.de_json(data.get("thumbnail"), bot)
-        data["mask_position"] = MaskPosition.de_json(data.get("mask_position"), bot)
-        data["premium_animation"] = File.de_json(data.get("premium_animation"), bot)
+        data["thumbnail"] = de_json_optional(data.get("thumbnail"), PhotoSize, bot)
+        data["mask_position"] = de_json_optional(data.get("mask_position"), MaskPosition, bot)
+        data["premium_animation"] = de_json_optional(data.get("premium_animation"), File, bot)
 
         api_kwargs = {}
         # This is a deprecated field that TG still returns for backwards compatibility
@@ -226,16 +225,20 @@ class StickerSet(TelegramObject):
     .. versionchanged:: 20.0
         The parameter ``contains_masks`` has been removed. Use :paramref:`sticker_type` instead.
 
+
+    .. versionchanged:: 21.1
+        The parameters ``is_video`` and ``is_animated`` are deprecated and now made optional. Thus,
+        the order of the arguments had to be changed.
+
     .. versionchanged:: 20.5
        |removed_thumb_note|
+
+    .. versionremoved:: 21.2
+       Removed the deprecated arguments and attributes ``is_animated`` and ``is_video``.
 
     Args:
         name (:obj:`str`): Sticker set name.
         title (:obj:`str`): Sticker set title.
-        is_animated (:obj:`bool`): :obj:`True`, if the sticker set contains animated stickers.
-        is_video (:obj:`bool`): :obj:`True`, if the sticker set contains video stickers.
-
-            .. versionadded:: 13.11
         stickers (Sequence[:class:`telegram.Sticker`]): List of all set stickers.
 
             .. versionchanged:: 20.0
@@ -254,11 +257,7 @@ class StickerSet(TelegramObject):
     Attributes:
         name (:obj:`str`): Sticker set name.
         title (:obj:`str`): Sticker set title.
-        is_animated (:obj:`bool`): :obj:`True`, if the sticker set contains animated stickers.
-        is_video (:obj:`bool`): :obj:`True`, if the sticker set contains video stickers.
-
-            .. versionadded:: 13.11
-        stickers (Tuple[:class:`telegram.Sticker`]): List of all set stickers.
+        stickers (tuple[:class:`telegram.Sticker`]): List of all set stickers.
 
             .. versionchanged:: 20.0
                 |tupleclassattrs|
@@ -275,22 +274,18 @@ class StickerSet(TelegramObject):
     """
 
     __slots__ = (
-        "is_animated",
-        "is_video",
         "name",
+        "sticker_type",
         "stickers",
         "thumbnail",
         "title",
-        "sticker_type",
     )
 
     def __init__(
         self,
         name: str,
         title: str,
-        is_animated: bool,
         stickers: Sequence[Sticker],
-        is_video: bool,
         sticker_type: str,
         thumbnail: Optional[PhotoSize] = None,
         *,
@@ -299,30 +294,26 @@ class StickerSet(TelegramObject):
         super().__init__(api_kwargs=api_kwargs)
         self.name: str = name
         self.title: str = title
-        self.is_animated: bool = is_animated
-        self.is_video: bool = is_video
-        self.stickers: Tuple[Sticker, ...] = parse_sequence_arg(stickers)
+        self.stickers: tuple[Sticker, ...] = parse_sequence_arg(stickers)
         self.sticker_type: str = sticker_type
         # Optional
-
         self.thumbnail: Optional[PhotoSize] = thumbnail
         self._id_attrs = (self.name,)
 
         self._freeze()
 
     @classmethod
-    def de_json(cls, data: Optional[JSONDict], bot: "Bot") -> Optional["StickerSet"]:
+    def de_json(cls, data: JSONDict, bot: Optional["Bot"] = None) -> "StickerSet":
         """See :meth:`telegram.TelegramObject.de_json`."""
-        if not data:
-            return None
+        data = cls._parse_data(data)
 
-        data["thumbnail"] = PhotoSize.de_json(data.get("thumbnail"), bot)
-        data["stickers"] = Sticker.de_list(data.get("stickers"), bot)
+        data["thumbnail"] = de_json_optional(data.get("thumbnail"), PhotoSize, bot)
+        data["stickers"] = de_list_optional(data.get("stickers"), Sticker, bot)
 
         api_kwargs = {}
         # These are deprecated fields that TG still returns for backwards compatibility
         # Let's filter them out to speed up the de-json process
-        for deprecated_field in ("contains_masks", "thumb"):
+        for deprecated_field in ("contains_masks", "thumb", "is_animated", "is_video"):
             if deprecated_field in data:
                 api_kwargs[deprecated_field] = data.pop(deprecated_field)
 

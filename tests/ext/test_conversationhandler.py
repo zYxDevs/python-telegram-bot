@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 #
 # A library that provides a Python interface to the Telegram Bot API
-# Copyright (C) 2015-2023
+# Copyright (C) 2015-2025
 # Leandro Toledo de Souza <devs@python-telegram-bot.org>
 #
 # This program is free software: you can redistribute it and/or modify
@@ -725,7 +725,7 @@ class TestConversationHandler:
             assert recwarn[0].category is PTBUserWarning
             assert (
                 Path(recwarn[0].filename)
-                == PROJECT_ROOT_PATH / "telegram" / "ext" / "_conversationhandler.py"
+                == PROJECT_ROOT_PATH / "telegram" / "ext" / "_handlers" / "conversationhandler.py"
             ), "wrong stacklevel!"
             assert (
                 str(recwarn[0].message)
@@ -1105,7 +1105,11 @@ class TestConversationHandler:
                 assert warning.category is PTBUserWarning
                 assert (
                     Path(warning.filename)
-                    == PROJECT_ROOT_PATH / "telegram" / "ext" / "_conversationhandler.py"
+                    == PROJECT_ROOT_PATH
+                    / "telegram"
+                    / "ext"
+                    / "_handlers"
+                    / "conversationhandler.py"
                 ), "wrong stacklevel!"
             # now set app.job_queue back to it's original value
 

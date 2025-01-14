@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 #
 # A library that provides a Python interface to the Telegram Bot API
-# Copyright (C) 2015-2023
+# Copyright (C) 2015-2025
 # Leandro Toledo de Souza <devs@python-telegram-bot.org>
 #
 # This program is free software: you can redistribute it and/or modify
@@ -32,24 +32,25 @@ from tests.auxil.slots import mro_slots
 @pytest.fixture(scope="module")
 def inline_query_result_video():
     return InlineQueryResultVideo(
-        TestInlineQueryResultVideoBase.id_,
-        TestInlineQueryResultVideoBase.video_url,
-        TestInlineQueryResultVideoBase.mime_type,
-        TestInlineQueryResultVideoBase.thumbnail_url,
-        TestInlineQueryResultVideoBase.title,
-        video_width=TestInlineQueryResultVideoBase.video_width,
-        video_height=TestInlineQueryResultVideoBase.video_height,
-        video_duration=TestInlineQueryResultVideoBase.video_duration,
-        caption=TestInlineQueryResultVideoBase.caption,
-        parse_mode=TestInlineQueryResultVideoBase.parse_mode,
-        caption_entities=TestInlineQueryResultVideoBase.caption_entities,
-        description=TestInlineQueryResultVideoBase.description,
-        input_message_content=TestInlineQueryResultVideoBase.input_message_content,
-        reply_markup=TestInlineQueryResultVideoBase.reply_markup,
+        InlineQueryResultVideoTestBase.id_,
+        InlineQueryResultVideoTestBase.video_url,
+        InlineQueryResultVideoTestBase.mime_type,
+        InlineQueryResultVideoTestBase.thumbnail_url,
+        InlineQueryResultVideoTestBase.title,
+        video_width=InlineQueryResultVideoTestBase.video_width,
+        video_height=InlineQueryResultVideoTestBase.video_height,
+        video_duration=InlineQueryResultVideoTestBase.video_duration,
+        caption=InlineQueryResultVideoTestBase.caption,
+        parse_mode=InlineQueryResultVideoTestBase.parse_mode,
+        caption_entities=InlineQueryResultVideoTestBase.caption_entities,
+        description=InlineQueryResultVideoTestBase.description,
+        input_message_content=InlineQueryResultVideoTestBase.input_message_content,
+        reply_markup=InlineQueryResultVideoTestBase.reply_markup,
+        show_caption_above_media=InlineQueryResultVideoTestBase.show_caption_above_media,
     )
 
 
-class TestInlineQueryResultVideoBase:
+class InlineQueryResultVideoTestBase:
     id_ = "id"
     type_ = "video"
     video_url = "video url"
@@ -65,9 +66,10 @@ class TestInlineQueryResultVideoBase:
     description = "description"
     input_message_content = InputTextMessageContent("input_message_content")
     reply_markup = InlineKeyboardMarkup([[InlineKeyboardButton("reply_markup")]])
+    show_caption_above_media = True
 
 
-class TestInlineQueryResultVideoWithoutRequest(TestInlineQueryResultVideoBase):
+class TestInlineQueryResultVideoWithoutRequest(InlineQueryResultVideoTestBase):
     def test_slot_behaviour(self, inline_query_result_video):
         inst = inline_query_result_video
         for attr in inst.__slots__:
@@ -93,6 +95,7 @@ class TestInlineQueryResultVideoWithoutRequest(TestInlineQueryResultVideoBase):
             == self.input_message_content.to_dict()
         )
         assert inline_query_result_video.reply_markup.to_dict() == self.reply_markup.to_dict()
+        assert inline_query_result_video.show_caption_above_media == self.show_caption_above_media
 
     def test_caption_entities_always_tuple(self):
         video = InlineQueryResultVideo(
@@ -139,6 +142,10 @@ class TestInlineQueryResultVideoWithoutRequest(TestInlineQueryResultVideoBase):
         assert (
             inline_query_result_video_dict["reply_markup"]
             == inline_query_result_video.reply_markup.to_dict()
+        )
+        assert (
+            inline_query_result_video_dict["show_caption_above_media"]
+            == inline_query_result_video.show_caption_above_media
         )
 
     def test_equality(self):

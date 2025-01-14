@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 #
 # A library that provides a Python interface to the Telegram Bot API
-# Copyright (C) 2015-2023
+# Copyright (C) 2015-2025
 # Leandro Toledo de Souza <devs@python-telegram-bot.org>
 #
 # This program is free software: you can redistribute it and/or modify
@@ -18,15 +18,17 @@
 # along with this program.  If not, see [http://www.gnu.org/licenses/].
 # pylint: disable=redefined-builtin
 """This module contains an object that represents a Telegram CallbackQuery"""
-from typing import TYPE_CHECKING, Final, Optional, Sequence, Tuple, Union
+from collections.abc import Sequence
+from typing import TYPE_CHECKING, Final, Optional, Union
 
 from telegram import constants
 from telegram._files.location import Location
-from telegram._message import Message
+from telegram._message import MaybeInaccessibleMessage, Message
 from telegram._telegramobject import TelegramObject
 from telegram._user import User
+from telegram._utils.argumentparsing import de_json_optional
 from telegram._utils.defaultvalue import DEFAULT_NONE
-from telegram._utils.types import DVInput, JSONDict, ODVInput, ReplyMarkup
+from telegram._utils.types import JSONDict, ODVInput, ReplyMarkup
 
 if TYPE_CHECKING:
     from telegram import (
@@ -34,8 +36,10 @@ if TYPE_CHECKING:
         GameHighScore,
         InlineKeyboardMarkup,
         InputMedia,
+        LinkPreviewOptions,
         MessageEntity,
         MessageId,
+        ReplyParameters,
     )
 
 
@@ -70,9 +74,11 @@ class CallbackQuery(TelegramObject):
         from_user (:class:`telegram.User`): Sender.
         chat_instance (:obj:`str`): Global identifier, uniquely corresponding to the chat to which
             the message with the callback button was sent. Useful for high scores in games.
-        message (:class:`telegram.Message`, optional): Message with the callback button that
-            originated the query. Note that message content and message date will not be available
-            if the message is too old.
+        message (:class:`telegram.MaybeInaccessibleMessage`, optional): Message sent by the bot
+            with the callback button that originated the query.
+
+            .. versionchanged:: 20.8
+               Accept objects of type :class:`telegram.MaybeInaccessibleMessage` since Bot API 7.0.
         data (:obj:`str`, optional): Data associated with the callback button. Be aware that the
             message, which originated the query, can contain no callback buttons with this data.
         inline_message_id (:obj:`str`, optional): Identifier of the message sent via the bot in
@@ -85,9 +91,12 @@ class CallbackQuery(TelegramObject):
         from_user (:class:`telegram.User`): Sender.
         chat_instance (:obj:`str`): Global identifier, uniquely corresponding to the chat to which
             the message with the callback button was sent. Useful for high scores in games.
-        message (:class:`telegram.Message`): Optional. Message with the callback button that
-            originated the query. Note that message content and message date will not be available
-            if the message is too old.
+        message (:class:`telegram.MaybeInaccessibleMessage`): Optional. Message sent by the bot
+            with the callback button that originated the query.
+
+            .. versionchanged:: 20.8
+               Objects may be of type :class:`telegram.MaybeInaccessibleMessage` since Bot API
+               7.0.
         data (:obj:`str` | :obj:`object`): Optional. Data associated with the callback button.
             Be aware that the message, which originated the query, can contain no callback buttons
             with this data.
@@ -104,13 +113,13 @@ class CallbackQuery(TelegramObject):
     """
 
     __slots__ = (
-        "game_short_name",
-        "message",
         "chat_instance",
-        "id",
-        "from_user",
-        "inline_message_id",
         "data",
+        "from_user",
+        "game_short_name",
+        "id",
+        "inline_message_id",
+        "message",
     )
 
     def __init__(
@@ -118,7 +127,7 @@ class CallbackQuery(TelegramObject):
         id: str,
         from_user: User,
         chat_instance: str,
-        message: Optional[Message] = None,
+        message: Optional[MaybeInaccessibleMessage] = None,
         data: Optional[str] = None,
         inline_message_id: Optional[str] = None,
         game_short_name: Optional[str] = None,
@@ -131,7 +140,7 @@ class CallbackQuery(TelegramObject):
         self.from_user: User = from_user
         self.chat_instance: str = chat_instance
         # Optionals
-        self.message: Optional[Message] = message
+        self.message: Optional[MaybeInaccessibleMessage] = message
         self.data: Optional[str] = data
         self.inline_message_id: Optional[str] = inline_message_id
         self.game_short_name: Optional[str] = game_short_name
@@ -141,15 +150,12 @@ class CallbackQuery(TelegramObject):
         self._freeze()
 
     @classmethod
-    def de_json(cls, data: Optional[JSONDict], bot: "Bot") -> Optional["CallbackQuery"]:
+    def de_json(cls, data: JSONDict, bot: Optional["Bot"] = None) -> "CallbackQuery":
         """See :meth:`telegram.TelegramObject.de_json`."""
         data = cls._parse_data(data)
 
-        if not data:
-            return None
-
-        data["from_user"] = User.de_json(data.pop("from", None), bot)
-        data["message"] = Message.de_json(data.get("message"), bot)
+        data["from_user"] = de_json_optional(data.pop("from", None), User, bot)
+        data["message"] = de_json_optional(data.get("message"), Message, bot)
 
         return super().de_json(data=data, bot=bot)
 
@@ -190,14 +196,23 @@ class CallbackQuery(TelegramObject):
             api_kwargs=api_kwargs,
         )
 
+    def _get_message(self, action: str = "edit") -> Message:
+        """Helper method to get the message for the shortcut methods. Must be called only
+        if :attr:`inline_message_id` is *not* set.
+        """
+        if not isinstance(self.message, Message):
+            raise TypeError(f"Cannot {action} an inaccessible message")
+        return self.message
+
     async def edit_message_text(
         self,
         text: str,
         parse_mode: ODVInput[str] = DEFAULT_NONE,
-        disable_web_page_preview: ODVInput[bool] = DEFAULT_NONE,
         reply_markup: Optional["InlineKeyboardMarkup"] = None,
         entities: Optional[Sequence["MessageEntity"]] = None,
+        link_preview_options: ODVInput["LinkPreviewOptions"] = DEFAULT_NONE,
         *,
+        disable_web_page_preview: Optional[bool] = None,
         read_timeout: ODVInput[float] = DEFAULT_NONE,
         write_timeout: ODVInput[float] = DEFAULT_NONE,
         connect_timeout: ODVInput[float] = DEFAULT_NONE,
@@ -217,9 +232,15 @@ class CallbackQuery(TelegramObject):
         For the documentation of the arguments, please see
         :meth:`telegram.Bot.edit_message_text` and :meth:`telegram.Message.edit_text`.
 
+        .. versionchanged:: 20.8
+           Raises :exc:`TypeError` if :attr:`message` is not accessible.
+
         Returns:
             :class:`telegram.Message`: On success, if edited message is sent by the bot, the
             edited Message is returned, otherwise :obj:`True` is returned.
+
+        Raises:
+            :exc:`TypeError` if :attr:`message` is not accessible.
 
         """
         if self.inline_message_id:
@@ -228,6 +249,7 @@ class CallbackQuery(TelegramObject):
                 text=text,
                 parse_mode=parse_mode,
                 disable_web_page_preview=disable_web_page_preview,
+                link_preview_options=link_preview_options,
                 reply_markup=reply_markup,
                 read_timeout=read_timeout,
                 write_timeout=write_timeout,
@@ -237,11 +259,14 @@ class CallbackQuery(TelegramObject):
                 entities=entities,
                 chat_id=None,
                 message_id=None,
+                # inline messages can not be sent on behalf of a bcid
+                business_connection_id=None,
             )
-        return await self.message.edit_text(
+        return await self._get_message().edit_text(
             text=text,
             parse_mode=parse_mode,
             disable_web_page_preview=disable_web_page_preview,
+            link_preview_options=link_preview_options,
             reply_markup=reply_markup,
             read_timeout=read_timeout,
             write_timeout=write_timeout,
@@ -257,6 +282,7 @@ class CallbackQuery(TelegramObject):
         reply_markup: Optional["InlineKeyboardMarkup"] = None,
         parse_mode: ODVInput[str] = DEFAULT_NONE,
         caption_entities: Optional[Sequence["MessageEntity"]] = None,
+        show_caption_above_media: Optional[bool] = None,
         *,
         read_timeout: ODVInput[float] = DEFAULT_NONE,
         write_timeout: ODVInput[float] = DEFAULT_NONE,
@@ -277,9 +303,15 @@ class CallbackQuery(TelegramObject):
         For the documentation of the arguments, please see
         :meth:`telegram.Bot.edit_message_caption` and :meth:`telegram.Message.edit_caption`.
 
+        .. versionchanged:: 20.8
+           Raises :exc:`TypeError` if :attr:`message` is not accessible.
+
         Returns:
             :class:`telegram.Message`: On success, if edited message is sent by the bot, the
             edited Message is returned, otherwise :obj:`True` is returned.
+
+        Raises:
+            :exc:`TypeError` if :attr:`message` is not accessible.
 
         """
         if self.inline_message_id:
@@ -296,8 +328,11 @@ class CallbackQuery(TelegramObject):
                 caption_entities=caption_entities,
                 chat_id=None,
                 message_id=None,
+                show_caption_above_media=show_caption_above_media,
+                # inline messages can not be sent on behalf of a bcid
+                business_connection_id=None,
             )
-        return await self.message.edit_caption(
+        return await self._get_message().edit_caption(
             caption=caption,
             reply_markup=reply_markup,
             read_timeout=read_timeout,
@@ -307,6 +342,7 @@ class CallbackQuery(TelegramObject):
             parse_mode=parse_mode,
             api_kwargs=api_kwargs,
             caption_entities=caption_entities,
+            show_caption_above_media=show_caption_above_media,
         )
 
     async def edit_message_reply_markup(
@@ -333,9 +369,15 @@ class CallbackQuery(TelegramObject):
         :meth:`telegram.Bot.edit_message_reply_markup` and
         :meth:`telegram.Message.edit_reply_markup`.
 
+        .. versionchanged:: 20.8
+           Raises :exc:`TypeError` if :attr:`message` is not accessible.
+
         Returns:
             :class:`telegram.Message`: On success, if edited message is sent by the bot, the
             edited Message is returned, otherwise :obj:`True` is returned.
+
+        Raises:
+            :exc:`TypeError` if :attr:`message` is not accessible.
 
         """
         if self.inline_message_id:
@@ -349,8 +391,10 @@ class CallbackQuery(TelegramObject):
                 api_kwargs=api_kwargs,
                 chat_id=None,
                 message_id=None,
+                # inline messages can not be sent on behalf of a bcid
+                business_connection_id=None,
             )
-        return await self.message.edit_reply_markup(
+        return await self._get_message().edit_reply_markup(
             reply_markup=reply_markup,
             read_timeout=read_timeout,
             write_timeout=write_timeout,
@@ -383,9 +427,15 @@ class CallbackQuery(TelegramObject):
         For the documentation of the arguments, please see
         :meth:`telegram.Bot.edit_message_media` and :meth:`telegram.Message.edit_media`.
 
+        .. versionchanged:: 20.8
+           Raises :exc:`TypeError` if :attr:`message` is not accessible.
+
         Returns:
             :class:`telegram.Message`: On success, if edited message is not an inline message, the
             edited Message is returned, otherwise :obj:`True` is returned.
+
+        Raises:
+            :exc:`TypeError` if :attr:`message` is not accessible.
 
         """
         if self.inline_message_id:
@@ -400,8 +450,10 @@ class CallbackQuery(TelegramObject):
                 api_kwargs=api_kwargs,
                 chat_id=None,
                 message_id=None,
+                # inline messages can not be sent on behalf of a bcid
+                business_connection_id=None,
             )
-        return await self.message.edit_media(
+        return await self._get_message().edit_media(
             media=media,
             reply_markup=reply_markup,
             read_timeout=read_timeout,
@@ -419,6 +471,7 @@ class CallbackQuery(TelegramObject):
         horizontal_accuracy: Optional[float] = None,
         heading: Optional[int] = None,
         proximity_alert_radius: Optional[int] = None,
+        live_period: Optional[int] = None,
         *,
         location: Optional[Location] = None,
         read_timeout: ODVInput[float] = DEFAULT_NONE,
@@ -441,9 +494,15 @@ class CallbackQuery(TelegramObject):
         :meth:`telegram.Bot.edit_message_live_location` and
         :meth:`telegram.Message.edit_live_location`.
 
+        .. versionchanged:: 20.8
+           Raises :exc:`TypeError` if :attr:`message` is not accessible.
+
         Returns:
             :class:`telegram.Message`: On success, if edited message is sent by the bot, the
             edited Message is returned, otherwise :obj:`True` is returned.
+
+        Raises:
+            :exc:`TypeError` if :attr:`message` is not accessible.
 
         """
         if self.inline_message_id:
@@ -461,10 +520,13 @@ class CallbackQuery(TelegramObject):
                 horizontal_accuracy=horizontal_accuracy,
                 heading=heading,
                 proximity_alert_radius=proximity_alert_radius,
+                live_period=live_period,
                 chat_id=None,
                 message_id=None,
+                # inline messages can not be sent on behalf of a bcid
+                business_connection_id=None,
             )
-        return await self.message.edit_live_location(
+        return await self._get_message().edit_live_location(
             latitude=latitude,
             longitude=longitude,
             location=location,
@@ -477,6 +539,7 @@ class CallbackQuery(TelegramObject):
             horizontal_accuracy=horizontal_accuracy,
             heading=heading,
             proximity_alert_radius=proximity_alert_radius,
+            live_period=live_period,
         )
 
     async def stop_message_live_location(
@@ -503,9 +566,15 @@ class CallbackQuery(TelegramObject):
         :meth:`telegram.Bot.stop_message_live_location` and
         :meth:`telegram.Message.stop_live_location`.
 
+        .. versionchanged:: 20.8
+           Raises :exc:`TypeError` if :attr:`message` is not accessible.
+
         Returns:
             :class:`telegram.Message`: On success, if edited message is sent by the bot, the
             edited Message is returned, otherwise :obj:`True` is returned.
+
+        Raises:
+            :exc:`TypeError` if :attr:`message` is not accessible.
 
         """
         if self.inline_message_id:
@@ -519,8 +588,10 @@ class CallbackQuery(TelegramObject):
                 api_kwargs=api_kwargs,
                 chat_id=None,
                 message_id=None,
+                # inline messages can not be sent on behalf of a bcid
+                business_connection_id=None,
             )
-        return await self.message.stop_live_location(
+        return await self._get_message().stop_live_location(
             reply_markup=reply_markup,
             read_timeout=read_timeout,
             write_timeout=write_timeout,
@@ -555,9 +626,15 @@ class CallbackQuery(TelegramObject):
         For the documentation of the arguments, please see
         :meth:`telegram.Bot.set_game_score` and :meth:`telegram.Message.set_game_score`.
 
+        .. versionchanged:: 20.8
+           Raises :exc:`TypeError` if :attr:`message` is not accessible.
+
         Returns:
             :class:`telegram.Message`: On success, if edited message is sent by the bot, the
             edited Message is returned, otherwise :obj:`True` is returned.
+
+        Raises:
+            :exc:`TypeError` if :attr:`message` is not accessible.
 
         """
         if self.inline_message_id:
@@ -575,7 +652,7 @@ class CallbackQuery(TelegramObject):
                 chat_id=None,
                 message_id=None,
             )
-        return await self.message.set_game_score(
+        return await self._get_message().set_game_score(
             user_id=user_id,
             score=score,
             force=force,
@@ -596,7 +673,7 @@ class CallbackQuery(TelegramObject):
         connect_timeout: ODVInput[float] = DEFAULT_NONE,
         pool_timeout: ODVInput[float] = DEFAULT_NONE,
         api_kwargs: Optional[JSONDict] = None,
-    ) -> Tuple["GameHighScore", ...]:
+    ) -> tuple["GameHighScore", ...]:
         """Shortcut for either::
 
             await update.callback_query.message.get_game_high_score(*args, **kwargs)
@@ -611,8 +688,14 @@ class CallbackQuery(TelegramObject):
         :meth:`telegram.Bot.get_game_high_scores` and
         :meth:`telegram.Message.get_game_high_scores`.
 
+        .. versionchanged:: 20.8
+           Raises :exc:`TypeError` if :attr:`message` is not accessible.
+
         Returns:
-            Tuple[:class:`telegram.GameHighScore`]
+            tuple[:class:`telegram.GameHighScore`]
+
+        Raises:
+            :exc:`TypeError` if :attr:`message` is not accessible.
 
         """
         if self.inline_message_id:
@@ -627,7 +710,7 @@ class CallbackQuery(TelegramObject):
                 chat_id=None,
                 message_id=None,
             )
-        return await self.message.get_game_high_scores(
+        return await self._get_message().get_game_high_scores(
             user_id=user_id,
             read_timeout=read_timeout,
             write_timeout=write_timeout,
@@ -651,11 +734,17 @@ class CallbackQuery(TelegramObject):
 
         For the documentation of the arguments, please see :meth:`telegram.Message.delete`.
 
+        .. versionchanged:: 20.8
+           Raises :exc:`TypeError` if :attr:`message` is not accessible.
+
         Returns:
             :obj:`bool`: On success, :obj:`True` is returned.
 
+        Raises:
+            :exc:`TypeError` if :attr:`message` is not accessible.
+
         """
-        return await self.message.delete(
+        return await self._get_message(action="delete").delete(
             read_timeout=read_timeout,
             write_timeout=write_timeout,
             connect_timeout=connect_timeout,
@@ -679,11 +768,16 @@ class CallbackQuery(TelegramObject):
 
         For the documentation of the arguments, please see :meth:`telegram.Message.pin`.
 
+        .. versionchanged:: 20.8
+           Raises :exc:`TypeError` if :attr:`message` is not accessible.
+
         Returns:
             :obj:`bool`: On success, :obj:`True` is returned.
 
+        Raises:
+            :exc:`TypeError` if :attr:`message` is not accessible.
         """
-        return await self.message.pin(
+        return await self._get_message(action="pin").pin(
             disable_notification=disable_notification,
             read_timeout=read_timeout,
             write_timeout=write_timeout,
@@ -707,11 +801,16 @@ class CallbackQuery(TelegramObject):
 
         For the documentation of the arguments, please see :meth:`telegram.Message.unpin`.
 
+        .. versionchanged:: 20.8
+           Raises :exc:`TypeError` if :attr:`message` is not accessible.
+
         Returns:
             :obj:`bool`: On success, :obj:`True` is returned.
 
+        Raises:
+            :exc:`TypeError` if :attr:`message` is not accessible.
         """
-        return await self.message.unpin(
+        return await self._get_message(action="unpin").unpin(
             read_timeout=read_timeout,
             write_timeout=write_timeout,
             connect_timeout=connect_timeout,
@@ -725,13 +824,16 @@ class CallbackQuery(TelegramObject):
         caption: Optional[str] = None,
         parse_mode: ODVInput[str] = DEFAULT_NONE,
         caption_entities: Optional[Sequence["MessageEntity"]] = None,
-        disable_notification: DVInput[bool] = DEFAULT_NONE,
-        reply_to_message_id: Optional[int] = None,
-        allow_sending_without_reply: DVInput[bool] = DEFAULT_NONE,
+        disable_notification: ODVInput[bool] = DEFAULT_NONE,
         reply_markup: Optional[ReplyMarkup] = None,
         protect_content: ODVInput[bool] = DEFAULT_NONE,
         message_thread_id: Optional[int] = None,
+        reply_parameters: Optional["ReplyParameters"] = None,
+        show_caption_above_media: Optional[bool] = None,
+        allow_paid_broadcast: Optional[bool] = None,
         *,
+        allow_sending_without_reply: ODVInput[bool] = DEFAULT_NONE,
+        reply_to_message_id: Optional[int] = None,
         read_timeout: ODVInput[float] = DEFAULT_NONE,
         write_timeout: ODVInput[float] = DEFAULT_NONE,
         connect_timeout: ODVInput[float] = DEFAULT_NONE,
@@ -749,11 +851,16 @@ class CallbackQuery(TelegramObject):
 
         For the documentation of the arguments, please see :meth:`telegram.Message.copy`.
 
+        .. versionchanged:: 20.8
+           Raises :exc:`TypeError` if :attr:`message` is not accessible.
+
         Returns:
             :class:`telegram.MessageId`: On success, returns the MessageId of the sent message.
 
+        Raises:
+            :exc:`TypeError` if :attr:`message` is not accessible.
         """
-        return await self.message.copy(
+        return await self._get_message(action="copy").copy(
             chat_id=chat_id,
             caption=caption,
             parse_mode=parse_mode,
@@ -769,11 +876,14 @@ class CallbackQuery(TelegramObject):
             api_kwargs=api_kwargs,
             protect_content=protect_content,
             message_thread_id=message_thread_id,
+            reply_parameters=reply_parameters,
+            show_caption_above_media=show_caption_above_media,
+            allow_paid_broadcast=allow_paid_broadcast,
         )
 
-    MAX_ANSWER_TEXT_LENGTH: Final[
-        int
-    ] = constants.CallbackQueryLimit.ANSWER_CALLBACK_QUERY_TEXT_LENGTH
+    MAX_ANSWER_TEXT_LENGTH: Final[int] = (
+        constants.CallbackQueryLimit.ANSWER_CALLBACK_QUERY_TEXT_LENGTH
+    )
     """
     :const:`telegram.constants.CallbackQueryLimit.ANSWER_CALLBACK_QUERY_TEXT_LENGTH`
 

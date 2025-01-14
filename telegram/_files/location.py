@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 #
 # A library that provides a Python interface to the Telegram Bot API
-# Copyright (C) 2015-2023
+# Copyright (C) 2015-2025
 # Leandro Toledo de Souza <devs@python-telegram-bot.org>
 #
 # This program is free software: you can redistribute it and/or modify
@@ -32,8 +32,8 @@ class Location(TelegramObject):
     considered equal, if their :attr:`longitude` and :attr:`latitude` are equal.
 
     Args:
-        longitude (:obj:`float`): Longitude as defined by sender.
-        latitude (:obj:`float`): Latitude as defined by sender.
+        longitude (:obj:`float`): Longitude as defined by the sender.
+        latitude (:obj:`float`): Latitude as defined by the sender.
         horizontal_accuracy (:obj:`float`, optional): The radius of uncertainty for the location,
             measured in meters; 0-:tg-const:`telegram.Location.HORIZONTAL_ACCURACY`.
         live_period (:obj:`int`, optional): Time relative to the message sending date, during which
@@ -45,8 +45,8 @@ class Location(TelegramObject):
             approaching another chat member, in meters. For sent live locations only.
 
     Attributes:
-        longitude (:obj:`float`): Longitude as defined by sender.
-        latitude (:obj:`float`): Latitude as defined by sender.
+        longitude (:obj:`float`): Longitude as defined by the sender.
+        latitude (:obj:`float`): Latitude as defined by the sender.
         horizontal_accuracy (:obj:`float`): Optional. The radius of uncertainty for the location,
             measured in meters; 0-:tg-const:`telegram.Location.HORIZONTAL_ACCURACY`.
         live_period (:obj:`int`): Optional. Time relative to the message sending date, during which
@@ -60,12 +60,12 @@ class Location(TelegramObject):
     """
 
     __slots__ = (
-        "longitude",
-        "horizontal_accuracy",
-        "proximity_alert_radius",
-        "live_period",
-        "latitude",
         "heading",
+        "horizontal_accuracy",
+        "latitude",
+        "live_period",
+        "longitude",
+        "proximity_alert_radius",
     )
 
     def __init__(

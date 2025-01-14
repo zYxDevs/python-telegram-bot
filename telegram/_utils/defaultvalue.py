@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 #
 # A library that provides a Python interface to the Telegram Bot API
-# Copyright (C) 2015-2023
+# Copyright (C) 2015-2025
 # Leandro Toledo de Souza <devs@python-telegram-bot.org>
 #
 # This program is free software: you can redistribute it and/or modify
@@ -98,13 +98,11 @@ class DefaultValue(Generic[DVType]):
 
     @overload
     @staticmethod
-    def get_value(obj: "DefaultValue[OT]") -> OT:
-        ...
+    def get_value(obj: "DefaultValue[OT]") -> OT: ...
 
     @overload
     @staticmethod
-    def get_value(obj: OT) -> OT:
-        ...
+    def get_value(obj: OT) -> OT: ...
 
     @staticmethod
     def get_value(obj: Union[OT, "DefaultValue[OT]"]) -> OT:
@@ -133,5 +131,18 @@ DEFAULT_TRUE: DefaultValue[bool] = DefaultValue(True)
 .. versionadded:: 20.0
 """
 
+
 DEFAULT_20: DefaultValue[int] = DefaultValue(20)
 """:class:`DefaultValue`: Default :obj:`20`"""
+
+DEFAULT_IP: DefaultValue[str] = DefaultValue("127.0.0.1")
+""":class:`DefaultValue`: Default :obj:`127.0.0.1`
+
+.. versionadded:: 20.8
+"""
+
+DEFAULT_80: DefaultValue[int] = DefaultValue(80)
+""":class:`DefaultValue`: Default :obj:`80`
+
+.. versionadded:: 20.8
+"""

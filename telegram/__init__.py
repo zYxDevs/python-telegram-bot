@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 #
 # A library that provides a Python interface to the Telegram Bot API
-# Copyright (C) 2015-2023
+# Copyright (C) 2015-2025
 # Leandro Toledo de Souza <devs@python-telegram-bot.org>
 #
 # This program is free software: you can redistribute it and/or modify
@@ -19,14 +19,20 @@
 """A library that provides a Python interface to the Telegram Bot API"""
 
 __author__ = "devs@python-telegram-bot.org"
-
-__all__ = (  # Keep this alphabetically ordered
-    "__bot_api_version__",
-    "__bot_api_version_info__",
-    "__version__",
-    "__version_info__",
+__all__ = (
+    "AffiliateInfo",
     "Animation",
     "Audio",
+    "BackgroundFill",
+    "BackgroundFillFreeformGradient",
+    "BackgroundFillGradient",
+    "BackgroundFillSolid",
+    "BackgroundType",
+    "BackgroundTypeChatTheme",
+    "BackgroundTypeFill",
+    "BackgroundTypePattern",
+    "BackgroundTypeWallpaper",
+    "Birthdate",
     "Bot",
     "BotCommand",
     "BotCommandScope",
@@ -40,34 +46,50 @@ __all__ = (  # Keep this alphabetically ordered
     "BotDescription",
     "BotName",
     "BotShortDescription",
+    "BusinessConnection",
+    "BusinessIntro",
+    "BusinessLocation",
+    "BusinessMessagesDeleted",
+    "BusinessOpeningHours",
+    "BusinessOpeningHoursInterval",
     "CallbackGame",
     "CallbackQuery",
     "Chat",
     "ChatAdministratorRights",
+    "ChatBackground",
+    "ChatBoost",
+    "ChatBoostAdded",
+    "ChatBoostRemoved",
+    "ChatBoostSource",
+    "ChatBoostSourceGiftCode",
+    "ChatBoostSourceGiveaway",
+    "ChatBoostSourcePremium",
+    "ChatBoostUpdated",
+    "ChatFullInfo",
     "ChatInviteLink",
     "ChatJoinRequest",
     "ChatLocation",
     "ChatMember",
-    "ChatMemberOwner",
     "ChatMemberAdministrator",
-    "ChatMemberMember",
-    "ChatMemberRestricted",
-    "ChatMemberLeft",
     "ChatMemberBanned",
+    "ChatMemberLeft",
+    "ChatMemberMember",
+    "ChatMemberOwner",
+    "ChatMemberRestricted",
     "ChatMemberUpdated",
     "ChatPermissions",
     "ChatPhoto",
     "ChatShared",
     "ChosenInlineResult",
-    "constants",
     "Contact",
+    "CopyTextButton",
     "Credentials",
     "DataCredentials",
     "Dice",
     "Document",
     "EncryptedCredentials",
     "EncryptedPassportElement",
-    "error",
+    "ExternalReplyInfo",
     "File",
     "FileCredentials",
     "ForceReply",
@@ -80,8 +102,14 @@ __all__ = (  # Keep this alphabetically ordered
     "GameHighScore",
     "GeneralForumTopicHidden",
     "GeneralForumTopicUnhidden",
-    "helpers",
+    "Gift",
+    "Gifts",
+    "Giveaway",
+    "GiveawayCompleted",
+    "GiveawayCreated",
+    "GiveawayWinners",
     "IdDocumentData",
+    "InaccessibleMessage",
     "InlineKeyboardButton",
     "InlineKeyboardMarkup",
     "InlineQuery",
@@ -103,10 +131,10 @@ __all__ = (  # Keep this alphabetically ordered
     "InlineQueryResultLocation",
     "InlineQueryResultMpeg4Gif",
     "InlineQueryResultPhoto",
-    "InlineQueryResultsButton",
     "InlineQueryResultVenue",
     "InlineQueryResultVideo",
     "InlineQueryResultVoice",
+    "InlineQueryResultsButton",
     "InputContactMessageContent",
     "InputFile",
     "InputInvoiceMessageContent",
@@ -118,6 +146,10 @@ __all__ = (  # Keep this alphabetically ordered
     "InputMediaPhoto",
     "InputMediaVideo",
     "InputMessageContent",
+    "InputPaidMedia",
+    "InputPaidMediaPhoto",
+    "InputPaidMediaVideo",
+    "InputPollOption",
     "InputSticker",
     "InputTextMessageContent",
     "InputVenueMessageContent",
@@ -125,11 +157,13 @@ __all__ = (  # Keep this alphabetically ordered
     "KeyboardButton",
     "KeyboardButtonPollType",
     "KeyboardButtonRequestChat",
-    "KeyboardButtonRequestUser",
+    "KeyboardButtonRequestUsers",
     "LabeledPrice",
+    "LinkPreviewOptions",
     "Location",
     "LoginUrl",
     "MaskPosition",
+    "MaybeInaccessibleMessage",
     "MenuButton",
     "MenuButtonCommands",
     "MenuButtonDefault",
@@ -138,7 +172,20 @@ __all__ = (  # Keep this alphabetically ordered
     "MessageAutoDeleteTimerChanged",
     "MessageEntity",
     "MessageId",
+    "MessageOrigin",
+    "MessageOriginChannel",
+    "MessageOriginChat",
+    "MessageOriginHiddenUser",
+    "MessageOriginUser",
+    "MessageReactionCountUpdated",
+    "MessageReactionUpdated",
     "OrderInfo",
+    "PaidMedia",
+    "PaidMediaInfo",
+    "PaidMediaPhoto",
+    "PaidMediaPreview",
+    "PaidMediaPurchased",
+    "PaidMediaVideo",
     "PassportData",
     "PassportElementError",
     "PassportElementErrorDataField",
@@ -157,27 +204,50 @@ __all__ = (  # Keep this alphabetically ordered
     "PollAnswer",
     "PollOption",
     "PreCheckoutQuery",
+    "PreparedInlineMessage",
     "ProximityAlertTriggered",
+    "ReactionCount",
+    "ReactionType",
+    "ReactionTypeCustomEmoji",
+    "ReactionTypeEmoji",
+    "ReactionTypePaid",
+    "RefundedPayment",
     "ReplyKeyboardMarkup",
     "ReplyKeyboardRemove",
-    "request",
+    "ReplyParameters",
     "ResidentialAddress",
+    "RevenueWithdrawalState",
+    "RevenueWithdrawalStateFailed",
+    "RevenueWithdrawalStatePending",
+    "RevenueWithdrawalStateSucceeded",
     "SecureData",
     "SecureValue",
     "SentWebAppMessage",
+    "SharedUser",
     "ShippingAddress",
     "ShippingOption",
     "ShippingQuery",
+    "StarTransaction",
+    "StarTransactions",
     "Sticker",
     "StickerSet",
     "Story",
     "SuccessfulPayment",
     "SwitchInlineQueryChosenChat",
     "TelegramObject",
+    "TextQuote",
+    "TransactionPartner",
+    "TransactionPartnerAffiliateProgram",
+    "TransactionPartnerFragment",
+    "TransactionPartnerOther",
+    "TransactionPartnerTelegramAds",
+    "TransactionPartnerTelegramApi",
+    "TransactionPartnerUser",
     "Update",
     "User",
+    "UserChatBoosts",
     "UserProfilePhotos",
-    "UserShared",
+    "UsersShared",
     "Venue",
     "Video",
     "VideoChatEnded",
@@ -186,15 +256,34 @@ __all__ = (  # Keep this alphabetically ordered
     "VideoChatStarted",
     "VideoNote",
     "Voice",
-    "warnings",
     "WebAppData",
     "WebAppInfo",
     "WebhookInfo",
     "WriteAccessAllowed",
+    "__bot_api_version__",
+    "__bot_api_version_info__",
+    "__version__",
+    "__version_info__",
+    "constants",
+    "error",
+    "helpers",
+    "request",
+    "warnings",
 )
 
+from telegram._payment.stars.startransactions import StarTransaction, StarTransactions
+from telegram._payment.stars.transactionpartner import (
+    TransactionPartner,
+    TransactionPartnerAffiliateProgram,
+    TransactionPartnerFragment,
+    TransactionPartnerOther,
+    TransactionPartnerTelegramAds,
+    TransactionPartnerTelegramApi,
+    TransactionPartnerUser,
+)
 
 from . import _version, constants, error, helpers, request, warnings
+from ._birthdate import Birthdate
 from ._bot import Bot
 from ._botcommand import BotCommand
 from ._botcommandscope import (
@@ -209,9 +298,41 @@ from ._botcommandscope import (
 )
 from ._botdescription import BotDescription, BotShortDescription
 from ._botname import BotName
+from ._business import (
+    BusinessConnection,
+    BusinessIntro,
+    BusinessLocation,
+    BusinessMessagesDeleted,
+    BusinessOpeningHours,
+    BusinessOpeningHoursInterval,
+)
 from ._callbackquery import CallbackQuery
 from ._chat import Chat
 from ._chatadministratorrights import ChatAdministratorRights
+from ._chatbackground import (
+    BackgroundFill,
+    BackgroundFillFreeformGradient,
+    BackgroundFillGradient,
+    BackgroundFillSolid,
+    BackgroundType,
+    BackgroundTypeChatTheme,
+    BackgroundTypeFill,
+    BackgroundTypePattern,
+    BackgroundTypeWallpaper,
+    ChatBackground,
+)
+from ._chatboost import (
+    ChatBoost,
+    ChatBoostAdded,
+    ChatBoostRemoved,
+    ChatBoostSource,
+    ChatBoostSourceGiftCode,
+    ChatBoostSourceGiveaway,
+    ChatBoostSourcePremium,
+    ChatBoostUpdated,
+    UserChatBoosts,
+)
+from ._chatfullinfo import ChatFullInfo
 from ._chatinvitelink import ChatInviteLink
 from ._chatjoinrequest import ChatJoinRequest
 from ._chatlocation import ChatLocation
@@ -227,6 +348,7 @@ from ._chatmember import (
 from ._chatmemberupdated import ChatMemberUpdated
 from ._chatpermissions import ChatPermissions
 from ._choseninlineresult import ChosenInlineResult
+from ._copytextbutton import CopyTextButton
 from ._dice import Dice
 from ._files.animation import Animation
 from ._files.audio import Audio
@@ -242,6 +364,9 @@ from ._files.inputmedia import (
     InputMediaDocument,
     InputMediaPhoto,
     InputMediaVideo,
+    InputPaidMedia,
+    InputPaidMediaPhoto,
+    InputPaidMediaVideo,
 )
 from ._files.inputsticker import InputSticker
 from ._files.location import Location
@@ -264,6 +389,8 @@ from ._forumtopic import (
 from ._games.callbackgame import CallbackGame
 from ._games.game import Game
 from ._games.gamehighscore import GameHighScore
+from ._gifts import Gift, Gifts
+from ._giveaway import Giveaway, GiveawayCompleted, GiveawayCreated, GiveawayWinners
 from ._inline.inlinekeyboardbutton import InlineKeyboardButton
 from ._inline.inlinekeyboardmarkup import InlineKeyboardMarkup
 from ._inline.inlinequery import InlineQuery
@@ -295,15 +422,33 @@ from ._inline.inputlocationmessagecontent import InputLocationMessageContent
 from ._inline.inputmessagecontent import InputMessageContent
 from ._inline.inputtextmessagecontent import InputTextMessageContent
 from ._inline.inputvenuemessagecontent import InputVenueMessageContent
+from ._inline.preparedinlinemessage import PreparedInlineMessage
 from ._keyboardbutton import KeyboardButton
 from ._keyboardbuttonpolltype import KeyboardButtonPollType
-from ._keyboardbuttonrequest import KeyboardButtonRequestChat, KeyboardButtonRequestUser
+from ._keyboardbuttonrequest import KeyboardButtonRequestChat, KeyboardButtonRequestUsers
+from ._linkpreviewoptions import LinkPreviewOptions
 from ._loginurl import LoginUrl
 from ._menubutton import MenuButton, MenuButtonCommands, MenuButtonDefault, MenuButtonWebApp
-from ._message import Message
+from ._message import InaccessibleMessage, MaybeInaccessibleMessage, Message
 from ._messageautodeletetimerchanged import MessageAutoDeleteTimerChanged
 from ._messageentity import MessageEntity
 from ._messageid import MessageId
+from ._messageorigin import (
+    MessageOrigin,
+    MessageOriginChannel,
+    MessageOriginChat,
+    MessageOriginHiddenUser,
+    MessageOriginUser,
+)
+from ._messagereactionupdated import MessageReactionCountUpdated, MessageReactionUpdated
+from ._paidmedia import (
+    PaidMedia,
+    PaidMediaInfo,
+    PaidMediaPhoto,
+    PaidMediaPreview,
+    PaidMediaPurchased,
+    PaidMediaVideo,
+)
 from ._passport.credentials import (
     Credentials,
     DataCredentials,
@@ -332,16 +477,32 @@ from ._payment.invoice import Invoice
 from ._payment.labeledprice import LabeledPrice
 from ._payment.orderinfo import OrderInfo
 from ._payment.precheckoutquery import PreCheckoutQuery
+from ._payment.refundedpayment import RefundedPayment
 from ._payment.shippingaddress import ShippingAddress
 from ._payment.shippingoption import ShippingOption
 from ._payment.shippingquery import ShippingQuery
+from ._payment.stars.affiliateinfo import AffiliateInfo
+from ._payment.stars.revenuewithdrawalstate import (
+    RevenueWithdrawalState,
+    RevenueWithdrawalStateFailed,
+    RevenueWithdrawalStatePending,
+    RevenueWithdrawalStateSucceeded,
+)
 from ._payment.successfulpayment import SuccessfulPayment
-from ._poll import Poll, PollAnswer, PollOption
+from ._poll import InputPollOption, Poll, PollAnswer, PollOption
 from ._proximityalerttriggered import ProximityAlertTriggered
+from ._reaction import (
+    ReactionCount,
+    ReactionType,
+    ReactionTypeCustomEmoji,
+    ReactionTypeEmoji,
+    ReactionTypePaid,
+)
+from ._reply import ExternalReplyInfo, ReplyParameters, TextQuote
 from ._replykeyboardmarkup import ReplyKeyboardMarkup
 from ._replykeyboardremove import ReplyKeyboardRemove
 from ._sentwebappmessage import SentWebAppMessage
-from ._shared import ChatShared, UserShared
+from ._shared import ChatShared, SharedUser, UsersShared
 from ._story import Story
 from ._switchinlinequerychosenchat import SwitchInlineQueryChosenChat
 from ._telegramobject import TelegramObject
@@ -376,8 +537,8 @@ __version_info__: _version.Version = _version.__version_info__
 #:
 #: .. versionchanged:: 20.0
 #:    This constant was previously named ``bot_api_version``.
-__bot_api_version__: str = _version.__bot_api_version__
+__bot_api_version__: str = constants.BOT_API_VERSION
 #: :class:`typing.NamedTuple`: Shortcut for :const:`telegram.constants.BOT_API_VERSION_INFO`.
 #:
 #: .. versionadded:: 20.0
-__bot_api_version_info__: constants._BotAPIVersion = _version.__bot_api_version_info__
+__bot_api_version_info__: constants._BotAPIVersion = constants.BOT_API_VERSION_INFO

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 #
 # A library that provides a Python interface to the Telegram Bot API
-# Copyright (C) 2015-2023
+# Copyright (C) 2015-2025
 # Leandro Toledo de Souza <devs@python-telegram-bot.org>
 #
 # This program is free software: you can redistribute it and/or modify
@@ -23,7 +23,7 @@ from telegram import (
     KeyboardButton,
     KeyboardButtonPollType,
     KeyboardButtonRequestChat,
-    KeyboardButtonRequestUser,
+    KeyboardButtonRequestUsers,
     WebAppInfo,
 )
 from tests.auxil.slots import mro_slots
@@ -32,27 +32,27 @@ from tests.auxil.slots import mro_slots
 @pytest.fixture(scope="module")
 def keyboard_button():
     return KeyboardButton(
-        TestKeyboardButtonBase.text,
-        request_location=TestKeyboardButtonBase.request_location,
-        request_contact=TestKeyboardButtonBase.request_contact,
-        request_poll=TestKeyboardButtonBase.request_poll,
-        web_app=TestKeyboardButtonBase.web_app,
-        request_chat=TestKeyboardButtonBase.request_chat,
-        request_user=TestKeyboardButtonBase.request_user,
+        KeyboardButtonTestBase.text,
+        request_location=KeyboardButtonTestBase.request_location,
+        request_contact=KeyboardButtonTestBase.request_contact,
+        request_poll=KeyboardButtonTestBase.request_poll,
+        web_app=KeyboardButtonTestBase.web_app,
+        request_chat=KeyboardButtonTestBase.request_chat,
+        request_users=KeyboardButtonTestBase.request_users,
     )
 
 
-class TestKeyboardButtonBase:
+class KeyboardButtonTestBase:
     text = "text"
     request_location = True
     request_contact = True
     request_poll = KeyboardButtonPollType("quiz")
     web_app = WebAppInfo(url="https://example.com")
     request_chat = KeyboardButtonRequestChat(1, True)
-    request_user = KeyboardButtonRequestUser(2)
+    request_users = KeyboardButtonRequestUsers(2)
 
 
-class TestKeyboardButtonWithoutRequest(TestKeyboardButtonBase):
+class TestKeyboardButtonWithoutRequest(KeyboardButtonTestBase):
     def test_slot_behaviour(self, keyboard_button):
         inst = keyboard_button
         for attr in inst.__slots__:
@@ -66,7 +66,7 @@ class TestKeyboardButtonWithoutRequest(TestKeyboardButtonBase):
         assert keyboard_button.request_poll == self.request_poll
         assert keyboard_button.web_app == self.web_app
         assert keyboard_button.request_chat == self.request_chat
-        assert keyboard_button.request_user == self.request_user
+        assert keyboard_button.request_users == self.request_users
 
     def test_to_dict(self, keyboard_button):
         keyboard_button_dict = keyboard_button.to_dict()
@@ -78,9 +78,10 @@ class TestKeyboardButtonWithoutRequest(TestKeyboardButtonBase):
         assert keyboard_button_dict["request_poll"] == keyboard_button.request_poll.to_dict()
         assert keyboard_button_dict["web_app"] == keyboard_button.web_app.to_dict()
         assert keyboard_button_dict["request_chat"] == keyboard_button.request_chat.to_dict()
-        assert keyboard_button_dict["request_user"] == keyboard_button.request_user.to_dict()
+        assert keyboard_button_dict["request_users"] == keyboard_button.request_users.to_dict()
 
-    def test_de_json(self, bot):
+    @pytest.mark.parametrize("request_user", [True, False])
+    def test_de_json(self, request_user):
         json_dict = {
             "text": self.text,
             "request_location": self.request_location,
@@ -88,21 +89,24 @@ class TestKeyboardButtonWithoutRequest(TestKeyboardButtonBase):
             "request_poll": self.request_poll.to_dict(),
             "web_app": self.web_app.to_dict(),
             "request_chat": self.request_chat.to_dict(),
-            "request_user": self.request_user.to_dict(),
+            "request_users": self.request_users.to_dict(),
         }
+        if request_user:
+            json_dict["request_user"] = {"request_id": 2}
 
-        inline_keyboard_button = KeyboardButton.de_json(json_dict, None)
-        assert inline_keyboard_button.api_kwargs == {}
-        assert inline_keyboard_button.text == self.text
-        assert inline_keyboard_button.request_location == self.request_location
-        assert inline_keyboard_button.request_contact == self.request_contact
-        assert inline_keyboard_button.request_poll == self.request_poll
-        assert inline_keyboard_button.web_app == self.web_app
-        assert inline_keyboard_button.request_chat == self.request_chat
-        assert inline_keyboard_button.request_user == self.request_user
+        keyboard_button = KeyboardButton.de_json(json_dict, None)
+        if request_user:
+            assert keyboard_button.api_kwargs == {"request_user": {"request_id": 2}}
+        else:
+            assert keyboard_button.api_kwargs == {}
 
-        none = KeyboardButton.de_json({}, None)
-        assert none is None
+        assert keyboard_button.text == self.text
+        assert keyboard_button.request_location == self.request_location
+        assert keyboard_button.request_contact == self.request_contact
+        assert keyboard_button.request_poll == self.request_poll
+        assert keyboard_button.web_app == self.web_app
+        assert keyboard_button.request_chat == self.request_chat
+        assert keyboard_button.request_users == self.request_users
 
     def test_equality(self):
         a = KeyboardButton("test", request_contact=True)
@@ -114,13 +118,13 @@ class TestKeyboardButtonWithoutRequest(TestKeyboardButtonBase):
             "test",
             request_contact=True,
             request_chat=KeyboardButtonRequestChat(1, False),
-            request_user=KeyboardButtonRequestUser(2),
+            request_users=KeyboardButtonRequestUsers(2),
         )
         g = KeyboardButton(
             "test",
             request_contact=True,
             request_chat=KeyboardButtonRequestChat(1, False),
-            request_user=KeyboardButtonRequestUser(2),
+            request_users=KeyboardButtonRequestUsers(2),
         )
 
         assert a == b

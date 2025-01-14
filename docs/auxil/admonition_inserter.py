@@ -1,6 +1,6 @@
 #
 #  A library that provides a Python interface to the Telegram Bot API
-#  Copyright (C) 2015-2023
+#  Copyright (C) 2015-2025
 #  Leandro Toledo de Souza <devs@python-telegram-bot.org>
 #
 #  This program is free software: you can redistribute it and/or modify
@@ -20,7 +20,8 @@ import inspect
 import re
 import typing
 from collections import defaultdict
-from typing import Any, Iterator, Union
+from collections.abc import Iterator
+from typing import Any, Union
 
 import telegram
 import telegram.ext
@@ -64,7 +65,7 @@ class AdmonitionInserter:
     ForwardRef('DefaultValue[DVValueType]')
     """
 
-    METHOD_NAMES_FOR_BOT_AND_APPBUILDER: dict[type, str] = {
+    METHOD_NAMES_FOR_BOT_AND_APPBUILDER: typing.ClassVar[dict[type, str]] = {
         cls: tuple(m[0] for m in _iter_own_public_methods(cls))  # m[0] means we take only names
         for cls in (telegram.Bot, telegram.ext.ApplicationBuilder)
     }
@@ -140,7 +141,7 @@ class AdmonitionInserter:
             r"^\s*(?P<attr_name>[a-z_]+)"  # Any number of spaces, named group for attribute
             r"\s?\("  # Optional whitespace, opening parenthesis
             r".*"  # Any number of characters (that could denote a built-in type)
-            r":class:`.+`"  # Marker of a classref, class name in backticks
+            r":(class|obj):`.+`"  # Marker of a classref, class name in backticks
             r".*\):"  # Any number of characters, closing parenthesis, colon.
             # The ^ colon above along with parenthesis is important because it makes sure that
             # the class is mentioned in the attribute description, not in free text.
@@ -149,17 +150,17 @@ class AdmonitionInserter:
         )
 
         # for properties: there is no attr name in docstring.  Just check if there's a class name.
-        prop_docstring_pattern = re.compile(r":class:`.+`.*:")
+        prop_docstring_pattern = re.compile(r":(class|obj):`.+`.*:")
 
         # pattern for iterating over potentially many class names in docstring for one attribute.
         # Tilde is optional (sometimes it is in the docstring, sometimes not).
-        single_class_name_pattern = re.compile(r":class:`~?(?P<class_name>[\w.]*)`")
+        single_class_name_pattern = re.compile(r":(class|obj):`~?(?P<class_name>[\w.]*)`")
 
         classes_to_inspect = inspect.getmembers(telegram, inspect.isclass) + inspect.getmembers(
             telegram.ext, inspect.isclass
         )
 
-        for class_name, inspected_class in classes_to_inspect:
+        for _class_name, inspected_class in classes_to_inspect:
             # We need to make "<class 'telegram._files.sticker.StickerSet'>" into
             # "telegram.StickerSet" because that's the way the classes are mentioned in
             # docstrings.
@@ -197,8 +198,8 @@ class AdmonitionInserter:
                             "Error generating Sphinx 'Available in' admonition "
                             f"(admonition_inserter.py). Class {name_of_class_in_attr} present in "
                             f"attribute {target_attr} of class {name_of_inspected_class_in_docstr}"
-                            f" could not be resolved. {str(e)}"
-                        )
+                            f" could not be resolved. {e!s}"
+                        ) from e
 
             # Properties need to be parsed separately because they act like attributes but not
             # listed as attributes.
@@ -240,8 +241,8 @@ class AdmonitionInserter:
                             "Error generating Sphinx 'Available in' admonition "
                             f"(admonition_inserter.py). Class {name_of_class_in_prop} present in "
                             f"property {prop_name} of class {name_of_inspected_class_in_docstr}"
-                            f" could not be resolved. {str(e)}"
-                        )
+                            f" could not be resolved. {e!s}"
+                        ) from e
 
         return self._generate_admonitions(attrs_for_class, admonition_type="available_in")
 
@@ -271,8 +272,8 @@ class AdmonitionInserter:
                     raise NotImplementedError(
                         "Error generating Sphinx 'Returned in' admonition "
                         f"(admonition_inserter.py). {cls}, method {method_name}. "
-                        f"Couldn't resolve type hint in return annotation {ret_annot}. {str(e)}"
-                    )
+                        f"Couldn't resolve type hint in return annotation {ret_annot}. {e!s}"
+                    ) from e
 
         return self._generate_admonitions(methods_for_class, admonition_type="returned_in")
 
@@ -297,7 +298,7 @@ class AdmonitionInserter:
 
         # inspect methods of all telegram classes for return statements that indicate
         # that this given method is a shortcut for a Bot method
-        for class_name, cls in inspect.getmembers(telegram, predicate=inspect.isclass):
+        for _class_name, cls in inspect.getmembers(telegram, predicate=inspect.isclass):
             # no need to inspect Bot's own methods, as Bot can't have shortcuts in Bot
             if cls is telegram.Bot:
                 continue
@@ -344,8 +345,8 @@ class AdmonitionInserter:
                         raise NotImplementedError(
                             "Error generating Sphinx 'Use in' admonition "
                             f"(admonition_inserter.py). {cls}, method {method_name}, parameter "
-                            f"{param}: Couldn't resolve type hint {param.annotation}. {str(e)}"
-                        )
+                            f"{param}: Couldn't resolve type hint {param.annotation}. {e!s}"
+                        ) from e
 
         return self._generate_admonitions(methods_for_class, admonition_type="use_in")
 
@@ -359,17 +360,20 @@ class AdmonitionInserter:
         If no key phrases are found, the admonition will be inserted at the very end.
         """
         for idx, value in list(enumerate(lines)):
-            if (
-                value.startswith(".. seealso:")
-                # The docstring contains heading "Examples:", but Sphinx will have it converted
-                # to ".. admonition: Examples":
-                or value.startswith(".. admonition:: Examples")
-                or value.startswith(".. version")
-                # The space after ":param" is important because docstring can contain ":paramref:"
-                # in its plain text in the beginning of a line (e.g. ExtBot):
-                or value.startswith(":param ")
-                # some classes (like "Credentials") have no params, so insert before attrs:
-                or value.startswith(".. attribute::")
+            if value.startswith(
+                (
+                    ".. seealso:",
+                    # The docstring contains heading "Examples:", but Sphinx will have it converted
+                    # to ".. admonition: Examples":
+                    ".. admonition:: Examples",
+                    ".. version",
+                    "Args:",
+                    # The space after ":param" is important because docstring can contain
+                    # ":paramref:" in its plain text in the beginning of a line (e.g. ExtBot):
+                    ":param ",
+                    # some classes (like "Credentials") have no params, so insert before attrs:
+                    ".. attribute::",
+                )
             ):
                 return idx
         return len(lines) - 1
@@ -411,7 +415,7 @@ class AdmonitionInserter:
                 # so its page needs no admonitions.
                 continue
 
-            attrs = sorted(attrs)
+            sorted_attrs = sorted(attrs)
 
             # e.g. for admonition type "use_in" the title will be "Use in" and CSS class "use-in".
             admonition = f"""
@@ -419,11 +423,11 @@ class AdmonitionInserter:
 .. admonition:: {admonition_type.title().replace("_", " ")}
     :class: {admonition_type.replace("_", "-")}
     """
-            if len(attrs) > 1:
-                for target_attr in attrs:
+            if len(sorted_attrs) > 1:
+                for target_attr in sorted_attrs:
                     admonition += "\n    * " + target_attr
             else:
-                admonition += f"\n    {attrs[0]}"
+                admonition += f"\n    {sorted_attrs[0]}"
 
             admonition += "\n    "  # otherwise an unexpected unindent warning will be issued
             admonition_for_class[cls] = admonition
@@ -431,12 +435,12 @@ class AdmonitionInserter:
         return admonition_for_class
 
     @staticmethod
-    def _generate_class_name_for_link(cls: type) -> str:
+    def _generate_class_name_for_link(cls_: type) -> str:
         """Generates class name that can be used in a ReST link."""
 
         # Check for potential presence of ".ext.", we will need to keep it.
-        ext = ".ext" if ".ext." in str(cls) else ""
-        return f"telegram{ext}.{cls.__name__}"
+        ext = ".ext" if ".ext." in str(cls_) else ""
+        return f"telegram{ext}.{cls_.__name__}"
 
     def _generate_link_to_method(self, method_name: str, cls: type) -> str:
         """Generates a ReST link to a method of a telegram class."""
@@ -444,11 +448,11 @@ class AdmonitionInserter:
         return f":meth:`{self._generate_class_name_for_link(cls)}.{method_name}`"
 
     @staticmethod
-    def _iter_subclasses(cls: type) -> Iterator:
+    def _iter_subclasses(cls_: type) -> Iterator:
         return (
             # exclude private classes
             c
-            for c in cls.__subclasses__()
+            for c in cls_.__subclasses__()
             if not str(c).split(".")[-1].startswith("_")
         )
 
@@ -516,12 +520,12 @@ class AdmonitionInserter:
             # If it isn't resolved, we'll have the program throw an exception to be sure.
             try:
                 cls = self._resolve_class(m.group("class_name"))
-            except AttributeError:
+            except AttributeError as exc:
                 # skip known ForwardRef's that need not be resolved to a Telegram class
                 if self.FORWARD_REF_SKIP_PATTERN.match(str(arg)):
                     pass
                 else:
-                    raise NotImplementedError(f"Could not process ForwardRef: {arg}")
+                    raise NotImplementedError(f"Could not process ForwardRef: {arg}") from exc
             else:
                 yield cls
 
@@ -587,6 +591,7 @@ class AdmonitionInserter:
             # If neither option works, this is not a PTB class.
             except (NameError, AttributeError):
                 continue
+        return None
 
 
 if __name__ == "__main__":
