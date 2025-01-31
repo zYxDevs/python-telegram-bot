@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 #
 # A library that provides a Python interface to the Telegram Bot API
-# Copyright (C) 2015-2023
+# Copyright (C) 2015-2025
 # Leandro Toledo de Souza <devs@python-telegram-bot.org>
 #
 # This program is free software: you can redistribute it and/or modify
@@ -81,7 +81,7 @@ class LoginUrl(TelegramObject):
 
     """
 
-    __slots__ = ("bot_username", "request_write_access", "url", "forward_text")
+    __slots__ = ("bot_username", "forward_text", "request_write_access", "url")
 
     def __init__(
         self,

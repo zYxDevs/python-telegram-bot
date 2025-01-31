@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 #
 # A library that provides a Python interface to the Telegram Bot API
-# Copyright (C) 2015-2023
+# Copyright (C) 2015-2025
 # Leandro Toledo de Souza <devs@python-telegram-bot.org>
 #
 # This program is free software: you can redistribute it and/or modify
@@ -17,11 +17,12 @@
 # You should have received a copy of the GNU Lesser Public License
 # along with this program.  If not, see [http://www.gnu.org/licenses/].
 """This module contains a class that represents a Telegram InputInvoiceMessageContent."""
-from typing import TYPE_CHECKING, Optional, Sequence, Tuple
+from collections.abc import Sequence
+from typing import TYPE_CHECKING, Optional
 
 from telegram._inline.inputmessagecontent import InputMessageContent
 from telegram._payment.labeledprice import LabeledPrice
-from telegram._utils.argumentparsing import parse_sequence_arg
+from telegram._utils.argumentparsing import de_list_optional, parse_sequence_arg
 from telegram._utils.types import JSONDict
 
 if TYPE_CHECKING:
@@ -47,26 +48,32 @@ class InputInvoiceMessageContent(InputMessageContent):
         payload (:obj:`str`): Bot-defined invoice payload.
             :tg-const:`telegram.Invoice.MIN_PAYLOAD_LENGTH`-
             :tg-const:`telegram.Invoice.MAX_PAYLOAD_LENGTH` bytes. This will not be displayed
-            to the user, use for your internal processes.
+            to the user, use it for your internal processes.
         provider_token (:obj:`str`): Payment provider token, obtained via
-            `@Botfather <https://t.me/Botfather>`_.
+            `@Botfather <https://t.me/Botfather>`_. Pass an empty string for payments in
+            |tg_stars|.
+
+            .. deprecated:: 21.3
+                As of Bot API 7.4, this parameter is now optional and future versions of the
+                library will make it optional as well.
         currency (:obj:`str`): Three-letter ISO 4217 currency code, see more on
-            `currencies <https://core.telegram.org/bots/payments#supported-currencies>`_
+            `currencies <https://core.telegram.org/bots/payments#supported-currencies>`_.
+            Pass ``XTR`` for payments in |tg_stars|.
         prices (Sequence[:class:`telegram.LabeledPrice`]): Price breakdown, a list of
             components (e.g. product price, tax, discount, delivery cost, delivery tax, bonus,
-            etc.)
+            etc.). Must contain exactly one item for payments in |tg_stars|.
 
             .. versionchanged:: 20.0
                 |sequenceclassargs|
 
         max_tip_amount (:obj:`int`, optional): The maximum accepted amount for tips in the
-            *smallest* units of the currency (integer, **not** float/double). For example, for a
-            maximum tip of US$ 1.45 pass ``max_tip_amount = 145``. See the ``exp`` parameter in
+            *smallest units* of the currency (integer, **not** float/double). For example, for a
+            maximum tip of ``US$ 1.45`` pass ``max_tip_amount = 145``. See the ``exp`` parameter in
             `currencies.json <https://core.telegram.org/bots/payments/currencies.json>`_, it
             shows the number of digits past the decimal point for each currency (2 for the majority
-            of currencies). Defaults to ``0``.
+            of currencies). Defaults to ``0``. Not supported for payments in |tg_stars|.
         suggested_tip_amounts (Sequence[:obj:`int`], optional): An array of suggested
-            amounts of tip in the *smallest* units of the currency (integer, **not** float/double).
+            amounts of tip in the *smallest units* of the currency (integer, **not** float/double).
             At most 4 suggested tip amounts can be specified. The suggested tip amounts must be
             positive, passed in a strictly increased order and must not exceed
             :attr:`max_tip_amount`.
@@ -85,20 +92,20 @@ class InputInvoiceMessageContent(InputMessageContent):
         photo_size (:obj:`int`, optional): Photo size.
         photo_width (:obj:`int`, optional): Photo width.
         photo_height (:obj:`int`, optional): Photo height.
-        need_name (:obj:`bool`, optional): Pass :obj:`True`, if you require the user's full name to
-            complete the order.
+        need_name (:obj:`bool`, optional): Pass :obj:`True`, if you require the user's full
+            name to complete the order. Ignored for payments in |tg_stars|.
         need_phone_number (:obj:`bool`, optional): Pass :obj:`True`, if you require the user's
-            phone number to complete the order
+            phone number to complete the order. Ignored for payments in |tg_stars|.
         need_email (:obj:`bool`, optional): Pass :obj:`True`, if you require the user's email
-            address to complete the order.
-        need_shipping_address (:obj:`bool`, optional): Pass :obj:`True`, if you require the user's
-            shipping address to complete the order
-        send_phone_number_to_provider (:obj:`bool`, optional): Pass :obj:`True`, if user's phone
-            number should be sent to provider.
-        send_email_to_provider (:obj:`bool`, optional): Pass :obj:`True`, if user's email address
-            should be sent to provider.
-        is_flexible (:obj:`bool`, optional): Pass :obj:`True`, if the final price depends on the
-            shipping method.
+            address to complete the order. Ignored for payments in |tg_stars|.
+        need_shipping_address (:obj:`bool`, optional): Pass :obj:`True`, if you require the
+            user's shipping address to complete the order. Ignored for payments in |tg_stars|
+        send_phone_number_to_provider (:obj:`bool`, optional): Pass :obj:`True`, if user's
+            phone number should be sent to provider. Ignored for payments in |tg_stars|.
+        send_email_to_provider (:obj:`bool`, optional): Pass :obj:`True`, if user's email
+            address should be sent to provider. Ignored for payments in |tg_stars|.
+        is_flexible (:obj:`bool`, optional): Pass :obj:`True`, if the final price depends on
+            the shipping method. Ignored for payments in |tg_stars|.
 
     Attributes:
         title (:obj:`str`): Product name. :tg-const:`telegram.Invoice.MIN_TITLE_LENGTH`-
@@ -109,26 +116,28 @@ class InputInvoiceMessageContent(InputMessageContent):
         payload (:obj:`str`): Bot-defined invoice payload.
             :tg-const:`telegram.Invoice.MIN_PAYLOAD_LENGTH`-
             :tg-const:`telegram.Invoice.MAX_PAYLOAD_LENGTH` bytes. This will not be displayed
-            to the user, use for your internal processes.
+            to the user, use it for your internal processes.
         provider_token (:obj:`str`): Payment provider token, obtained via
-            `@Botfather <https://t.me/Botfather>`_.
+            `@Botfather <https://t.me/Botfather>`_. Pass an empty string for payments in `Telegram
+            Stars <https://t.me/BotNews/90>`_.
         currency (:obj:`str`): Three-letter ISO 4217 currency code, see more on
-            `currencies <https://core.telegram.org/bots/payments#supported-currencies>`_
-        prices (Tuple[:class:`telegram.LabeledPrice`]): Price breakdown, a list of
+            `currencies <https://core.telegram.org/bots/payments#supported-currencies>`_.
+            Pass ``XTR`` for payments in |tg_stars|.
+        prices (tuple[:class:`telegram.LabeledPrice`]): Price breakdown, a list of
             components (e.g. product price, tax, discount, delivery cost, delivery tax, bonus,
-            etc.)
+            etc.). Must contain exactly one item for payments in |tg_stars|.
 
             .. versionchanged:: 20.0
                 |tupleclassattrs|
 
         max_tip_amount (:obj:`int`): Optional. The maximum accepted amount for tips in the
-            *smallest* units of the currency (integer, **not** float/double). For example, for a
-            maximum tip of US$ 1.45 ``max_tip_amount`` is ``145``. See the ``exp`` parameter in
+            *smallest units* of the currency (integer, **not** float/double). For example, for a
+            maximum tip of ``US$ 1.45`` ``max_tip_amount`` is ``145``. See the ``exp`` parameter in
             `currencies.json <https://core.telegram.org/bots/payments/currencies.json>`_, it
             shows the number of digits past the decimal point for each currency (2 for the majority
-            of currencies). Defaults to ``0``.
-        suggested_tip_amounts (Tuple[:obj:`int`]): Optional. An array of suggested
-            amounts of tip in the *smallest* units of the currency (integer, **not** float/double).
+            of currencies). Defaults to ``0``. Not supported for payments in |tg_stars|.
+        suggested_tip_amounts (tuple[:obj:`int`]): Optional. An array of suggested
+            amounts of tip in the *smallest units* of the currency (integer, **not** float/double).
             At most 4 suggested tip amounts can be specified. The suggested tip amounts must be
             positive, passed in a strictly increased order and must not exceed
             :attr:`max_tip_amount`.
@@ -146,43 +155,43 @@ class InputInvoiceMessageContent(InputMessageContent):
         photo_width (:obj:`int`): Optional. Photo width.
         photo_height (:obj:`int`): Optional. Photo height.
         need_name (:obj:`bool`): Optional. Pass :obj:`True`, if you require the user's full name to
-            complete the order.
+            complete the order. Ignored for payments in |tg_stars|.
         need_phone_number (:obj:`bool`): Optional. Pass :obj:`True`, if you require the user's
-            phone number to complete the order
+            phone number to complete the order. Ignored for payments in |tg_stars|.
         need_email (:obj:`bool`): Optional. Pass :obj:`True`, if you require the user's email
-            address to complete the order.
+            address to complete the order. Ignored for payments in |tg_stars|.
         need_shipping_address (:obj:`bool`): Optional. Pass :obj:`True`, if you require the user's
-            shipping address to complete the order
+            shipping address to complete the order. Ignored for payments in |tg_stars|.
         send_phone_number_to_provider (:obj:`bool`): Optional. Pass :obj:`True`, if user's phone
-            number should be sent to provider.
+            number should be sent to provider. Ignored for payments in |tg_stars|.
         send_email_to_provider (:obj:`bool`): Optional. Pass :obj:`True`, if user's email address
-            should be sent to provider.
+            should be sent to provider. Ignored for payments in |tg_stars|.
         is_flexible (:obj:`bool`): Optional. Pass :obj:`True`, if the final price depends on the
-            shipping method.
+            shipping method. Ignored for payments in |tg_stars|.
 
     """
 
     __slots__ = (
-        "title",
-        "description",
-        "payload",
-        "provider_token",
         "currency",
-        "prices",
+        "description",
+        "is_flexible",
         "max_tip_amount",
-        "suggested_tip_amounts",
-        "provider_data",
-        "photo_url",
-        "photo_size",
-        "photo_width",
-        "photo_height",
+        "need_email",
         "need_name",
         "need_phone_number",
-        "need_email",
         "need_shipping_address",
-        "send_phone_number_to_provider",
+        "payload",
+        "photo_height",
+        "photo_size",
+        "photo_url",
+        "photo_width",
+        "prices",
+        "provider_data",
+        "provider_token",
         "send_email_to_provider",
-        "is_flexible",
+        "send_phone_number_to_provider",
+        "suggested_tip_amounts",
+        "title",
     )
 
     def __init__(
@@ -190,7 +199,7 @@ class InputInvoiceMessageContent(InputMessageContent):
         title: str,
         description: str,
         payload: str,
-        provider_token: str,
+        provider_token: Optional[str],  # This arg is now optional since Bot API 7.4
         currency: str,
         prices: Sequence[LabeledPrice],
         max_tip_amount: Optional[int] = None,
@@ -216,12 +225,12 @@ class InputInvoiceMessageContent(InputMessageContent):
             self.title: str = title
             self.description: str = description
             self.payload: str = payload
-            self.provider_token: str = provider_token
+            self.provider_token: Optional[str] = provider_token
             self.currency: str = currency
-            self.prices: Tuple[LabeledPrice, ...] = parse_sequence_arg(prices)
+            self.prices: tuple[LabeledPrice, ...] = parse_sequence_arg(prices)
             # Optionals
             self.max_tip_amount: Optional[int] = max_tip_amount
-            self.suggested_tip_amounts: Tuple[int, ...] = parse_sequence_arg(suggested_tip_amounts)
+            self.suggested_tip_amounts: tuple[int, ...] = parse_sequence_arg(suggested_tip_amounts)
             self.provider_data: Optional[str] = provider_data
             self.photo_url: Optional[str] = photo_url
             self.photo_size: Optional[int] = photo_size
@@ -245,15 +254,10 @@ class InputInvoiceMessageContent(InputMessageContent):
             )
 
     @classmethod
-    def de_json(
-        cls, data: Optional[JSONDict], bot: "Bot"
-    ) -> Optional["InputInvoiceMessageContent"]:
+    def de_json(cls, data: JSONDict, bot: Optional["Bot"] = None) -> "InputInvoiceMessageContent":
         """See :meth:`telegram.TelegramObject.de_json`."""
         data = cls._parse_data(data)
 
-        if not data:
-            return None
-
-        data["prices"] = LabeledPrice.de_list(data.get("prices"), bot)
+        data["prices"] = de_list_optional(data.get("prices"), LabeledPrice, bot)
 
         return super().de_json(data=data, bot=bot)

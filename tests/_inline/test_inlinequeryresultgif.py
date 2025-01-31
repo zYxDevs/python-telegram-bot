@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 #
 # A library that provides a Python interface to the Telegram Bot API
-# Copyright (C) 2015-2023
+# Copyright (C) 2015-2025
 # Leandro Toledo de Souza <devs@python-telegram-bot.org>
 #
 # This program is free software: you can redistribute it and/or modify
@@ -32,23 +32,24 @@ from tests.auxil.slots import mro_slots
 @pytest.fixture(scope="module")
 def inline_query_result_gif():
     return InlineQueryResultGif(
-        TestInlineQueryResultGifBase.id_,
-        TestInlineQueryResultGifBase.gif_url,
-        TestInlineQueryResultGifBase.thumbnail_url,
-        gif_width=TestInlineQueryResultGifBase.gif_width,
-        gif_height=TestInlineQueryResultGifBase.gif_height,
-        gif_duration=TestInlineQueryResultGifBase.gif_duration,
-        title=TestInlineQueryResultGifBase.title,
-        caption=TestInlineQueryResultGifBase.caption,
-        parse_mode=TestInlineQueryResultGifBase.parse_mode,
-        caption_entities=TestInlineQueryResultGifBase.caption_entities,
-        input_message_content=TestInlineQueryResultGifBase.input_message_content,
-        reply_markup=TestInlineQueryResultGifBase.reply_markup,
-        thumbnail_mime_type=TestInlineQueryResultGifBase.thumbnail_mime_type,
+        InlineQueryResultGifTestBase.id_,
+        InlineQueryResultGifTestBase.gif_url,
+        InlineQueryResultGifTestBase.thumbnail_url,
+        gif_width=InlineQueryResultGifTestBase.gif_width,
+        gif_height=InlineQueryResultGifTestBase.gif_height,
+        gif_duration=InlineQueryResultGifTestBase.gif_duration,
+        title=InlineQueryResultGifTestBase.title,
+        caption=InlineQueryResultGifTestBase.caption,
+        parse_mode=InlineQueryResultGifTestBase.parse_mode,
+        caption_entities=InlineQueryResultGifTestBase.caption_entities,
+        input_message_content=InlineQueryResultGifTestBase.input_message_content,
+        reply_markup=InlineQueryResultGifTestBase.reply_markup,
+        thumbnail_mime_type=InlineQueryResultGifTestBase.thumbnail_mime_type,
+        show_caption_above_media=InlineQueryResultGifTestBase.show_caption_above_media,
     )
 
 
-class TestInlineQueryResultGifBase:
+class InlineQueryResultGifTestBase:
     id_ = "id"
     type_ = "gif"
     gif_url = "gif url"
@@ -63,9 +64,10 @@ class TestInlineQueryResultGifBase:
     caption_entities = [MessageEntity(MessageEntity.ITALIC, 0, 7)]
     input_message_content = InputTextMessageContent("input_message_content")
     reply_markup = InlineKeyboardMarkup([[InlineKeyboardButton("reply_markup")]])
+    show_caption_above_media = True
 
 
-class TestInlineQueryResultGifWithoutRequest(TestInlineQueryResultGifBase):
+class TestInlineQueryResultGifWithoutRequest(InlineQueryResultGifTestBase):
     def test_slot_behaviour(self, inline_query_result_gif):
         inst = inline_query_result_gif
         for attr in inst.__slots__:
@@ -94,6 +96,7 @@ class TestInlineQueryResultGifWithoutRequest(TestInlineQueryResultGifBase):
             == self.input_message_content.to_dict()
         )
         assert inline_query_result_gif.reply_markup.to_dict() == self.reply_markup.to_dict()
+        assert inline_query_result_gif.show_caption_above_media == self.show_caption_above_media
 
     def test_to_dict(self, inline_query_result_gif):
         inline_query_result_gif_dict = inline_query_result_gif.to_dict()
@@ -125,6 +128,10 @@ class TestInlineQueryResultGifWithoutRequest(TestInlineQueryResultGifBase):
         assert (
             inline_query_result_gif_dict["reply_markup"]
             == inline_query_result_gif.reply_markup.to_dict()
+        )
+        assert (
+            inline_query_result_gif_dict["show_caption_above_media"]
+            == inline_query_result_gif.show_caption_above_media
         )
 
     def test_equality(self):

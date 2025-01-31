@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 #
 # A library that provides a Python interface to the Telegram Bot API
-# Copyright (C) 2015-2023
+# Copyright (C) 2015-2025
 # Leandro Toledo de Souza <devs@python-telegram-bot.org>
 #
 # This program is free software: you can redistribute it and/or modify
@@ -32,23 +32,24 @@ from tests.auxil.slots import mro_slots
 @pytest.fixture(scope="module")
 def inline_query_result_mpeg4_gif():
     return InlineQueryResultMpeg4Gif(
-        TestInlineQueryResultMpeg4GifBase.id_,
-        TestInlineQueryResultMpeg4GifBase.mpeg4_url,
-        TestInlineQueryResultMpeg4GifBase.thumbnail_url,
-        mpeg4_width=TestInlineQueryResultMpeg4GifBase.mpeg4_width,
-        mpeg4_height=TestInlineQueryResultMpeg4GifBase.mpeg4_height,
-        mpeg4_duration=TestInlineQueryResultMpeg4GifBase.mpeg4_duration,
-        title=TestInlineQueryResultMpeg4GifBase.title,
-        caption=TestInlineQueryResultMpeg4GifBase.caption,
-        parse_mode=TestInlineQueryResultMpeg4GifBase.parse_mode,
-        caption_entities=TestInlineQueryResultMpeg4GifBase.caption_entities,
-        input_message_content=TestInlineQueryResultMpeg4GifBase.input_message_content,
-        reply_markup=TestInlineQueryResultMpeg4GifBase.reply_markup,
-        thumbnail_mime_type=TestInlineQueryResultMpeg4GifBase.thumbnail_mime_type,
+        InlineQueryResultMpeg4GifTestBase.id_,
+        InlineQueryResultMpeg4GifTestBase.mpeg4_url,
+        InlineQueryResultMpeg4GifTestBase.thumbnail_url,
+        mpeg4_width=InlineQueryResultMpeg4GifTestBase.mpeg4_width,
+        mpeg4_height=InlineQueryResultMpeg4GifTestBase.mpeg4_height,
+        mpeg4_duration=InlineQueryResultMpeg4GifTestBase.mpeg4_duration,
+        title=InlineQueryResultMpeg4GifTestBase.title,
+        caption=InlineQueryResultMpeg4GifTestBase.caption,
+        parse_mode=InlineQueryResultMpeg4GifTestBase.parse_mode,
+        caption_entities=InlineQueryResultMpeg4GifTestBase.caption_entities,
+        input_message_content=InlineQueryResultMpeg4GifTestBase.input_message_content,
+        reply_markup=InlineQueryResultMpeg4GifTestBase.reply_markup,
+        thumbnail_mime_type=InlineQueryResultMpeg4GifTestBase.thumbnail_mime_type,
+        show_caption_above_media=InlineQueryResultMpeg4GifTestBase.show_caption_above_media,
     )
 
 
-class TestInlineQueryResultMpeg4GifBase:
+class InlineQueryResultMpeg4GifTestBase:
     id_ = "id"
     type_ = "mpeg4_gif"
     mpeg4_url = "mpeg4 url"
@@ -63,9 +64,10 @@ class TestInlineQueryResultMpeg4GifBase:
     caption_entities = [MessageEntity(MessageEntity.ITALIC, 0, 7)]
     input_message_content = InputTextMessageContent("input_message_content")
     reply_markup = InlineKeyboardMarkup([[InlineKeyboardButton("reply_markup")]])
+    show_caption_above_media = True
 
 
-class TestInlineQueryResultMpeg4GifWithoutRequest(TestInlineQueryResultMpeg4GifBase):
+class TestInlineQueryResultMpeg4GifWithoutRequest(InlineQueryResultMpeg4GifTestBase):
     def test_slot_behaviour(self, inline_query_result_mpeg4_gif):
         inst = inline_query_result_mpeg4_gif
         for attr in inst.__slots__:
@@ -90,6 +92,9 @@ class TestInlineQueryResultMpeg4GifWithoutRequest(TestInlineQueryResultMpeg4GifB
             == self.input_message_content.to_dict()
         )
         assert inline_query_result_mpeg4_gif.reply_markup.to_dict() == self.reply_markup.to_dict()
+        assert (
+            inline_query_result_mpeg4_gif.show_caption_above_media == self.show_caption_above_media
+        )
 
     def test_caption_entities_always_tuple(self):
         result = InlineQueryResultMpeg4Gif(self.id_, self.mpeg4_url, self.thumbnail_url)
@@ -143,6 +148,10 @@ class TestInlineQueryResultMpeg4GifWithoutRequest(TestInlineQueryResultMpeg4GifB
         assert (
             inline_query_result_mpeg4_gif_dict["reply_markup"]
             == inline_query_result_mpeg4_gif.reply_markup.to_dict()
+        )
+        assert (
+            inline_query_result_mpeg4_gif_dict["show_caption_above_media"]
+            == inline_query_result_mpeg4_gif.show_caption_above_media
         )
 
     def test_equality(self):

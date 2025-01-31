@@ -2,7 +2,7 @@
 # pylint: disable=too-many-arguments
 #
 # A library that provides a Python interface to the Telegram Bot API
-# Copyright (C) 2015-2023
+# Copyright (C) 2015-2025
 # Leandro Toledo de Souza <devs@python-telegram-bot.org>
 #
 # This program is free software: you can redistribute it and/or modify
@@ -24,6 +24,7 @@ from typing import TYPE_CHECKING, Optional
 from telegram._files.location import Location
 from telegram._telegramobject import TelegramObject
 from telegram._user import User
+from telegram._utils.argumentparsing import de_json_optional
 from telegram._utils.types import JSONDict
 
 if TYPE_CHECKING:
@@ -65,7 +66,7 @@ class ChosenInlineResult(TelegramObject):
 
     """
 
-    __slots__ = ("location", "result_id", "from_user", "inline_message_id", "query")
+    __slots__ = ("from_user", "inline_message_id", "location", "query", "result_id")
 
     def __init__(
         self,
@@ -92,16 +93,13 @@ class ChosenInlineResult(TelegramObject):
         self._freeze()
 
     @classmethod
-    def de_json(cls, data: Optional[JSONDict], bot: "Bot") -> Optional["ChosenInlineResult"]:
+    def de_json(cls, data: JSONDict, bot: Optional["Bot"] = None) -> "ChosenInlineResult":
         """See :meth:`telegram.TelegramObject.de_json`."""
         data = cls._parse_data(data)
 
-        if not data:
-            return None
-
         # Required
-        data["from_user"] = User.de_json(data.pop("from", None), bot)
+        data["from_user"] = de_json_optional(data.pop("from", None), User, bot)
         # Optionals
-        data["location"] = Location.de_json(data.get("location"), bot)
+        data["location"] = de_json_optional(data.get("location"), Location, bot)
 
         return super().de_json(data=data, bot=bot)

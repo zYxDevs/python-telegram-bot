@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 #
 # A library that provides a Python interface to the Telegram Bot API
-# Copyright (C) 2015-2023
+# Copyright (C) 2015-2025
 # Leandro Toledo de Souza <devs@python-telegram-bot.org>
 #
 # This program is free software: you can redistribute it and/or modify
@@ -29,6 +29,7 @@ class ReplyKeyboardRemove(TelegramObject):
     keyboard and display the default letter-keyboard. By default, custom keyboards are displayed
     until a new keyboard is sent by a bot. An exception is made for one-time keyboards that are
     hidden immediately after the user presses a button (see :class:`telegram.ReplyKeyboardMarkup`).
+    Not supported in channels and for messages sent on behalf of a Telegram Business account.
 
     Note:
         User will not be able to summon this keyboard; if you want to hide the keyboard from
@@ -46,8 +47,8 @@ class ReplyKeyboardRemove(TelegramObject):
             for specific users only. Targets:
 
             1) Users that are @mentioned in the text of the :class:`telegram.Message` object.
-            2) If the bot's message is a reply (has ``reply_to_message_id``), sender of
-               the original message.
+            2) If the bot's message is a reply to a message in the same chat and forum topic,
+               sender of the original message.
 
     Attributes:
         remove_keyboard (:obj:`True`): Requests clients to remove the custom keyboard.
@@ -55,12 +56,12 @@ class ReplyKeyboardRemove(TelegramObject):
             Targets:
 
             1) Users that are @mentioned in the text of the :class:`telegram.Message` object.
-            2) If the bot's message is a reply (has ``reply_to_message_id``), sender of
-               the original message.
+            2) If the bot's message is a reply to a message in the same chat and forum topic,
+                sender of the original message.
 
     """
 
-    __slots__ = ("selective", "remove_keyboard")
+    __slots__ = ("remove_keyboard", "selective")
 
     def __init__(self, selective: Optional[bool] = None, *, api_kwargs: Optional[JSONDict] = None):
         super().__init__(api_kwargs=api_kwargs)

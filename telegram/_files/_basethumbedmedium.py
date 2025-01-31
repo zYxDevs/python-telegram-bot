@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 #
 # A library that provides a Python interface to the Telegram Bot API
-# Copyright (C) 2015-2023
+# Copyright (C) 2015-2025
 # Leandro Toledo de Souza <devs@python-telegram-bot.org>
 #
 # This program is free software: you can redistribute it and/or modify
@@ -17,10 +17,11 @@
 # You should have received a copy of the GNU Lesser Public License
 # along with this program.  If not, see [http://www.gnu.org/licenses/].
 """Common base class for media objects with thumbnails"""
-from typing import TYPE_CHECKING, Optional, Type, TypeVar
+from typing import TYPE_CHECKING, Optional, TypeVar
 
 from telegram._files._basemedium import _BaseMedium
 from telegram._files.photosize import PhotoSize
+from telegram._utils.argumentparsing import de_json_optional
 from telegram._utils.types import JSONDict
 
 if TYPE_CHECKING:
@@ -44,7 +45,7 @@ class _BaseThumbedMedium(_BaseMedium):
             is supposed to be the same over time and for different bots.
             Can't be used to download or reuse the file.
         file_size (:obj:`int`, optional): File size.
-        thumbnail (:class:`telegram.PhotoSize`, optional): Thumbnail as defined by sender.
+        thumbnail (:class:`telegram.PhotoSize`, optional): Thumbnail as defined by the sender.
 
             .. versionadded:: 20.2
 
@@ -54,7 +55,7 @@ class _BaseThumbedMedium(_BaseMedium):
             is supposed to be the same over time and for different bots.
             Can't be used to download or reuse the file.
         file_size (:obj:`int`): Optional. File size.
-        thumbnail (:class:`telegram.PhotoSize`): Optional. Thumbnail as defined by sender.
+        thumbnail (:class:`telegram.PhotoSize`): Optional. Thumbnail as defined by the sender.
 
             .. versionadded:: 20.2
 
@@ -82,17 +83,14 @@ class _BaseThumbedMedium(_BaseMedium):
 
     @classmethod
     def de_json(
-        cls: Type[ThumbedMT_co], data: Optional[JSONDict], bot: "Bot"
-    ) -> Optional[ThumbedMT_co]:
+        cls: type[ThumbedMT_co], data: JSONDict, bot: Optional["Bot"] = None
+    ) -> ThumbedMT_co:
         """See :meth:`telegram.TelegramObject.de_json`."""
         data = cls._parse_data(data)
 
-        if not data:
-            return None
-
         # In case this wasn't already done by the subclass
         if not isinstance(data.get("thumbnail"), PhotoSize):
-            data["thumbnail"] = PhotoSize.de_json(data.get("thumbnail"), bot)
+            data["thumbnail"] = de_json_optional(data.get("thumbnail"), PhotoSize, bot)
 
         api_kwargs = {}
         # This is a deprecated field that TG still returns for backwards compatibility

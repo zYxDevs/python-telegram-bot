@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 #
 # A library that provides a Python interface to the Telegram Bot API
-# Copyright (C) 2015-2023
+# Copyright (C) 2015-2025
 # Leandro Toledo de Souza <devs@python-telegram-bot.org>
 #
 # This program is free software: you can redistribute it and/or modify
@@ -17,16 +17,19 @@
 # You should have received a copy of the GNU Lesser Public License
 # along with this program.  If not, see [http://www.gnu.org/licenses/].
 """This module contains methods to make POST and GET requests using the httpx library."""
-from typing import Optional, Tuple
+from collections.abc import Collection
+from typing import Any, Optional, Union
 
 import httpx
 
 from telegram._utils.defaultvalue import DefaultValue
 from telegram._utils.logging import get_logger
-from telegram._utils.types import HTTPVersion, ODVInput
+from telegram._utils.types import HTTPVersion, ODVInput, SocketOpt
+from telegram._utils.warnings import warn
 from telegram.error import NetworkError, TimedOut
 from telegram.request._baserequest import BaseRequest
 from telegram.request._requestdata import RequestData
+from telegram.warnings import PTBDeprecationWarning
 
 # Note to future devs:
 # Proxies are currently only tested manually. The httpx development docs have a nice guide on that:
@@ -49,17 +52,10 @@ class HTTPXRequest(BaseRequest):
             Note:
                 Independent of the value, one additional connection will be reserved for
                 :meth:`telegram.Bot.get_updates`.
-        proxy_url (:obj:`str`, optional): The URL to the proxy server. For example
-            ``'http://127.0.0.1:3128'`` or ``'socks5://127.0.0.1:3128'``. Defaults to :obj:`None`.
+        proxy_url (:obj:`str`, optional): Legacy name for :paramref:`proxy`, kept for backward
+            compatibility. Defaults to :obj:`None`.
 
-            Note:
-                * The proxy URL can also be set via the environment variables ``HTTPS_PROXY`` or
-                  ``ALL_PROXY``. See `the docs of httpx`_ for more info.
-                * For Socks5 support, additional dependencies are required. Make sure to install
-                  PTB via :command:`pip install "python-telegram-bot[socks]"` in this case.
-                * Socks5 proxies can not be set via environment variables.
-
-            .. _the docs of httpx: https://www.python-httpx.org/environment_variables/#proxies
+            .. deprecated:: 20.7
         read_timeout (:obj:`float` | :obj:`None`, optional): If passed, specifies the maximum
             amount of time (in seconds) to wait for a response from Telegram's server.
             This value is used unless a different value is passed to :meth:`do_request`.
@@ -69,6 +65,10 @@ class HTTPXRequest(BaseRequest):
             a network socket; i.e. POSTing a request or uploading a file).
             This value is used unless a different value is passed to :meth:`do_request`.
             Defaults to ``5``.
+
+            Hint:
+                This timeout is used for all requests except for those that upload media/files.
+                For the latter, :paramref:`media_write_timeout` is used.
         connect_timeout (:obj:`float` | :obj:`None`, optional): If passed, specifies the
             maximum amount of time (in seconds) to wait for a connection attempt to a server
             to succeed. This value is used unless a different value is passed to
@@ -91,22 +91,85 @@ class HTTPXRequest(BaseRequest):
 
             .. versionchanged:: 20.5
                 Accept ``"2"`` as a valid value.
+        socket_options (Collection[:obj:`tuple`], optional): Socket options to be passed to the
+            underlying `library \
+            <https://www.encode.io/httpcore/async/#httpcore.AsyncConnectionPool.__init__>`_.
+
+            Note:
+                The values accepted by this parameter depend on the operating system.
+                This is a low-level parameter and should only be used if you are familiar with
+                these concepts.
+
+            .. versionadded:: 20.7
+        proxy (:obj:`str` | ``httpx.Proxy`` | ``httpx.URL``, optional): The URL to a proxy server,
+            a ``httpx.Proxy`` object or a ``httpx.URL`` object. For example
+            ``'http://127.0.0.1:3128'`` or ``'socks5://127.0.0.1:3128'``. Defaults to :obj:`None`.
+
+            Note:
+                * The proxy URL can also be set via the environment variables ``HTTPS_PROXY`` or
+                  ``ALL_PROXY``. See `the docs of httpx`_ for more info.
+                * HTTPS proxies can be configured by passing a ``httpx.Proxy`` object with
+                  a corresponding ``ssl_context``.
+                * For Socks5 support, additional dependencies are required. Make sure to install
+                  PTB via :command:`pip install "python-telegram-bot[socks]"` in this case.
+                * Socks5 proxies can not be set via environment variables.
+
+            .. _the docs of httpx: https://www.python-httpx.org/environment_variables/#proxies
+
+            .. versionadded:: 20.7
+        media_write_timeout (:obj:`float` | :obj:`None`, optional): Like :paramref:`write_timeout`,
+            but used only for requests that upload media/files. This value is used unless a
+            different value is passed to :paramref:`do_request.write_timeout` of
+            :meth:`do_request`. Defaults to ``20`` seconds.
+
+            .. versionadded:: 21.0
+        httpx_kwargs (dict[:obj:`str`, Any], optional): Additional keyword arguments to be passed
+            to the `httpx.AsyncClient <https://www.python-httpx.org/api/#asyncclient>`_
+            constructor.
+
+            Warning:
+                This parameter is intended for advanced users that want to fine-tune the behavior
+                of the underlying ``httpx`` client. The values passed here will override all the
+                defaults set by ``python-telegram-bot`` and all other parameters passed to
+                :class:`HTTPXRequest`. The only exception is the :paramref:`media_write_timeout`
+                parameter, which is not passed to the client constructor.
+                No runtime warnings will be issued about parameters that are overridden in this
+                way.
+
+            .. versionadded:: 21.6
 
     """
 
-    __slots__ = ("_client", "_client_kwargs", "_http_version")
+    __slots__ = ("_client", "_client_kwargs", "_http_version", "_media_write_timeout")
 
     def __init__(
         self,
         connection_pool_size: int = 1,
-        proxy_url: Optional[str] = None,
+        proxy_url: Optional[Union[str, httpx.Proxy, httpx.URL]] = None,
         read_timeout: Optional[float] = 5.0,
         write_timeout: Optional[float] = 5.0,
         connect_timeout: Optional[float] = 5.0,
         pool_timeout: Optional[float] = 1.0,
         http_version: HTTPVersion = "1.1",
+        socket_options: Optional[Collection[SocketOpt]] = None,
+        proxy: Optional[Union[str, httpx.Proxy, httpx.URL]] = None,
+        media_write_timeout: Optional[float] = 20.0,
+        httpx_kwargs: Optional[dict[str, Any]] = None,
     ):
+        if proxy_url is not None and proxy is not None:
+            raise ValueError("The parameters `proxy_url` and `proxy` are mutually exclusive.")
+
+        if proxy_url is not None:
+            proxy = proxy_url
+            warn(
+                PTBDeprecationWarning(
+                    "20.7", "The parameter `proxy_url` is deprecated. Use `proxy` instead."
+                ),
+                stacklevel=2,
+            )
+
         self._http_version = http_version
+        self._media_write_timeout = media_write_timeout
         timeout = httpx.Timeout(
             connect=connect_timeout,
             read=read_timeout,
@@ -122,22 +185,28 @@ class HTTPXRequest(BaseRequest):
             raise ValueError("`http_version` must be either '1.1', '2.0' or '2'.")
 
         http1 = http_version == "1.1"
-
-        # See https://github.com/python-telegram-bot/python-telegram-bot/pull/3542
-        # for why we need to use `dict()` here.
-        self._client_kwargs = dict(  # pylint: disable=use-dict-literal  # noqa: C408
-            timeout=timeout,
-            proxies=proxy_url,
-            limits=limits,
-            http1=http1,
-            http2=not http1,
+        http_kwargs = {"http1": http1, "http2": not http1}
+        transport = (
+            httpx.AsyncHTTPTransport(
+                socket_options=socket_options,
+            )
+            if socket_options
+            else None
         )
+        self._client_kwargs = {
+            "timeout": timeout,
+            "proxy": proxy,
+            "limits": limits,
+            "transport": transport,
+            **http_kwargs,
+            **(httpx_kwargs or {}),
+        }
 
         try:
             self._client = self._build_client()
         except ImportError as exc:
             if "httpx[http2]" not in str(exc) and "httpx[socks]" not in str(exc):
-                raise exc
+                raise
 
             if "httpx[socks]" in str(exc):
                 raise RuntimeError(
@@ -158,8 +227,18 @@ class HTTPXRequest(BaseRequest):
         """
         return self._http_version
 
+    @property
+    def read_timeout(self) -> Optional[float]:
+        """See :attr:`BaseRequest.read_timeout`.
+
+        Returns:
+            :obj:`float` | :obj:`None`: The default read timeout in seconds as passed to
+                :paramref:`HTTPXRequest.read_timeout`.
+        """
+        return self._client.timeout.read
+
     def _build_client(self) -> httpx.AsyncClient:
-        return httpx.AsyncClient(**self._client_kwargs)  # type: ignore[arg-type]
+        return httpx.AsyncClient(**self._client_kwargs)
 
     async def initialize(self) -> None:
         """See :meth:`BaseRequest.initialize`."""
@@ -183,21 +262,25 @@ class HTTPXRequest(BaseRequest):
         write_timeout: ODVInput[float] = BaseRequest.DEFAULT_NONE,
         connect_timeout: ODVInput[float] = BaseRequest.DEFAULT_NONE,
         pool_timeout: ODVInput[float] = BaseRequest.DEFAULT_NONE,
-    ) -> Tuple[int, bytes]:
+    ) -> tuple[int, bytes]:
         """See :meth:`BaseRequest.do_request`."""
         if self._client.is_closed:
             raise RuntimeError("This HTTPXRequest is not initialized!")
+
+        files = request_data.multipart_data if request_data else None
+        data = request_data.json_parameters if request_data else None
 
         # If user did not specify timeouts (for e.g. in a bot method), use the default ones when we
         # created this instance.
         if isinstance(read_timeout, DefaultValue):
             read_timeout = self._client.timeout.read
-        if isinstance(write_timeout, DefaultValue):
-            write_timeout = self._client.timeout.write
         if isinstance(connect_timeout, DefaultValue):
             connect_timeout = self._client.timeout.connect
         if isinstance(pool_timeout, DefaultValue):
             pool_timeout = self._client.timeout.pool
+
+        if isinstance(write_timeout, DefaultValue):
+            write_timeout = self._client.timeout.write if not files else self._media_write_timeout
 
         timeout = httpx.Timeout(
             connect=connect_timeout,
@@ -205,15 +288,6 @@ class HTTPXRequest(BaseRequest):
             write=write_timeout,
             pool=pool_timeout,
         )
-
-        # TODO p0: On Linux, use setsockopt to properly set socket level keepalive.
-        #          (socket.IPPROTO_TCP, socket.TCP_KEEPIDLE, 120)
-        #          (socket.IPPROTO_TCP, socket.TCP_KEEPINTVL, 30)
-        #          (socket.IPPROTO_TCP, socket.TCP_KEEPCNT, 8)
-        # TODO p4: Support setsockopt on lesser platforms than Linux.
-
-        files = request_data.multipart_data if request_data else None
-        data = request_data.json_parameters if request_data else None
 
         try:
             res = await self._client.request(

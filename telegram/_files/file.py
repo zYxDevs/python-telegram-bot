@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 #
 # A library that provides a Python interface to the Telegram Bot API
-# Copyright (C) 2015-2023
+# Copyright (C) 2015-2025
 # Leandro Toledo de Souza <devs@python-telegram-bot.org>
 #
 # This program is free software: you can redistribute it and/or modify
@@ -74,11 +74,11 @@ class File(TelegramObject):
     """
 
     __slots__ = (
+        "_credentials",
         "file_id",
+        "file_path",
         "file_size",
         "file_unique_id",
-        "file_path",
-        "_credentials",
     )
 
     def __init__(
@@ -128,9 +128,8 @@ class File(TelegramObject):
     ) -> Path:
         """
         Download this file. By default, the file is saved in the current working directory with
-        :attr:`file_path` as file name. If the file has no filename, the file ID will be used as
-        filename. If :paramref:`custom_path` is supplied as a :obj:`str` or :obj:`pathlib.Path`,
-        it will be saved to that path.
+        :attr:`file_path` as file name. If :paramref:`custom_path` is supplied as a :obj:`str` or
+        :obj:`pathlib.Path`, it will be saved to that path.
 
         Note:
             If :paramref:`custom_path` isn't provided and :attr:`file_path` is the path of a
@@ -151,6 +150,11 @@ class File(TelegramObject):
               returned.
             * This method was previously called ``download``. It was split into
               :meth:`download_to_drive` and :meth:`download_to_memory`.
+
+        .. versionchanged:: 21.7
+            Raises :exc:`RuntimeError` if :attr:`file_path` is not set. Note that files without
+            a :attr:`file_path` could never be downloaded, as this attribute is mandatory for that
+            operation.
 
         Args:
             custom_path (:class:`pathlib.Path` | :obj:`str` , optional): The path where the file
@@ -175,7 +179,13 @@ class File(TelegramObject):
         Returns:
             :class:`pathlib.Path`: Returns the Path object the file was downloaded to.
 
+        Raises:
+            RuntimeError: If :attr:`file_path` is not set.
+
         """
+        if not self.file_path:
+            raise RuntimeError("No `file_path` available for this file. Can not download.")
+
         local_file = is_local_file(self.file_path)
         url = None if local_file else self._get_encoded_url()
 
@@ -198,10 +208,8 @@ class File(TelegramObject):
             filename = Path(custom_path)
         elif local_file:
             return Path(self.file_path)
-        elif self.file_path:
-            filename = Path(Path(self.file_path).name)
         else:
-            filename = Path.cwd() / self.file_id
+            filename = Path(Path(self.file_path).name)
 
         buf = await self.get_bot().request.retrieve(
             url,
@@ -231,7 +239,16 @@ class File(TelegramObject):
 
         .. seealso:: :wiki:`Working with Files and Media <Working-with-Files-and-Media>`
 
+        Hint:
+            If you want to immediately read the data from ``out`` after calling this method, you
+            should call ``out.seek(0)`` first. See also :meth:`io.IOBase.seek`.
+
         .. versionadded:: 20.0
+
+        .. versionchanged:: 21.7
+            Raises :exc:`RuntimeError` if :attr:`file_path` is not set. Note that files without
+            a :attr:`file_path` could never be downloaded, as this attribute is mandatory for that
+            operation.
 
         Args:
             out (:obj:`io.BufferedIOBase`): A file-like object. Must be opened for writing in
@@ -250,7 +267,13 @@ class File(TelegramObject):
             pool_timeout (:obj:`float` | :obj:`None`, optional): Value to pass to
                 :paramref:`telegram.request.BaseRequest.post.pool_timeout`. Defaults to
                 :attr:`~telegram.request.BaseRequest.DEFAULT_NONE`.
+
+        Raises:
+            RuntimeError: If :attr:`file_path` is not set.
         """
+        if not self.file_path:
+            raise RuntimeError("No `file_path` available for this file. Can not download.")
+
         local_file = is_local_file(self.file_path)
         url = None if local_file else self._get_encoded_url()
         path = Path(self.file_path) if local_file else None
@@ -278,6 +301,11 @@ class File(TelegramObject):
         pool_timeout: ODVInput[float] = DEFAULT_NONE,
     ) -> bytearray:
         """Download this file and return it as a bytearray.
+
+        .. versionchanged:: 21.7
+            Raises :exc:`RuntimeError` if :attr:`file_path` is not set. Note that files without
+            a :attr:`file_path` could never be downloaded, as this attribute is mandatory for that
+            operation.
 
         Args:
             buf (:obj:`bytearray`, optional): Extend the given bytearray with the downloaded data.
@@ -308,7 +336,13 @@ class File(TelegramObject):
             :obj:`bytearray`: The same object as :paramref:`buf` if it was specified. Otherwise a
             newly allocated :obj:`bytearray`.
 
+        Raises:
+            RuntimeError: If :attr:`file_path` is not set.
+
         """
+        if not self.file_path:
+            raise RuntimeError("No `file_path` available for this file. Can not download.")
+
         if buf is None:
             buf = bytearray()
 

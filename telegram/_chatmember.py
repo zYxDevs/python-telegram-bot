@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 #
 # A library that provides a Python interface to the Telegram Bot API
-# Copyright (C) 2015-2023
+# Copyright (C) 2015-2025
 # Leandro Toledo de Souza <devs@python-telegram-bot.org>
 #
 # This program is free software: you can redistribute it and/or modify
@@ -17,12 +17,14 @@
 # You should have received a copy of the GNU Lesser Public License
 # along with this program.  If not, see [http://www.gnu.org/licenses/].
 """This module contains an object that represents a Telegram ChatMember."""
-import datetime
-from typing import TYPE_CHECKING, Dict, Final, Optional, Type
+
+import datetime as dtm
+from typing import TYPE_CHECKING, Final, Optional
 
 from telegram import constants
 from telegram._telegramobject import TelegramObject
 from telegram._user import User
+from telegram._utils.argumentparsing import de_json_optional
 from telegram._utils.datetime import extract_tzinfo_from_defaults, from_timestamp
 from telegram._utils.types import JSONDict
 
@@ -72,7 +74,7 @@ class ChatMember(TelegramObject):
 
     """
 
-    __slots__ = ("user", "status")
+    __slots__ = ("status", "user")
 
     ADMINISTRATOR: Final[str] = constants.ChatMemberStatus.ADMINISTRATOR
     """:const:`telegram.constants.ChatMemberStatus.ADMINISTRATOR`"""
@@ -104,14 +106,11 @@ class ChatMember(TelegramObject):
         self._freeze()
 
     @classmethod
-    def de_json(cls, data: Optional[JSONDict], bot: "Bot") -> Optional["ChatMember"]:
+    def de_json(cls, data: JSONDict, bot: Optional["Bot"] = None) -> "ChatMember":
         """See :meth:`telegram.TelegramObject.de_json`."""
         data = cls._parse_data(data)
 
-        if not data:
-            return None
-
-        _class_mapping: Dict[str, Type[ChatMember]] = {
+        _class_mapping: dict[str, type[ChatMember]] = {
             cls.OWNER: ChatMemberOwner,
             cls.ADMINISTRATOR: ChatMemberAdministrator,
             cls.MEMBER: ChatMemberMember,
@@ -123,12 +122,12 @@ class ChatMember(TelegramObject):
         if cls is ChatMember and data.get("status") in _class_mapping:
             return _class_mapping[data.pop("status")].de_json(data=data, bot=bot)
 
-        data["user"] = User.de_json(data.get("user"), bot)
+        data["user"] = de_json_optional(data.get("user"), User, bot)
         if "until_date" in data:
             # Get the local timezone from the bot if it has defaults
             loc_tzinfo = extract_tzinfo_from_defaults(bot)
 
-            data["until_date"] = from_timestamp(data["until_date"], tzinfo=loc_tzinfo)
+            data["until_date"] = from_timestamp(data.get("until_date"), tzinfo=loc_tzinfo)
 
         # This is a deprecated field that TG still returns for backwards compatibility
         # Let's filter it out to speed up the de-json process
@@ -162,7 +161,7 @@ class ChatMemberOwner(ChatMember):
             this user.
     """
 
-    __slots__ = ("is_anonymous", "custom_title")
+    __slots__ = ("custom_title", "is_anonymous")
 
     def __init__(
         self,
@@ -191,15 +190,19 @@ class ChatMemberAdministrator(ChatMember):
        * The argument :paramref:`can_manage_topics` was added, which changes the position of the
          optional argument :paramref:`custom_title`.
 
+    .. versionchanged:: 21.1
+        As of this version, :attr:`can_post_stories`, :attr:`can_edit_stories`,
+        and :attr:`can_delete_stories` is now required. Thus, the order of arguments had to be
+        changed.
+
     Args:
         user (:class:`telegram.User`): Information about the user.
         can_be_edited (:obj:`bool`): :obj:`True`, if the bot
             is allowed to edit administrator privileges of that user.
         is_anonymous (:obj:`bool`): :obj:`True`, if the  user's
             presence in the chat is hidden.
-        can_manage_chat (:obj:`bool`): :obj:`True`, if the administrator
-            can access the chat event log, chat statistics, message statistics in
-            channels, see channel members, see anonymous administrators in supergroups
+        can_manage_chat (:obj:`bool`): :obj:`True`, if the administrator can access the chat event
+            log, get boost list, see hidden supergroup and channel members, report spam messages
             and ignore slow mode. Implied by any other administrator privilege.
         can_delete_messages (:obj:`bool`): :obj:`True`, if the
             administrator can delete messages of other users.
@@ -218,14 +221,34 @@ class ChatMemberAdministrator(ChatMember):
         can_invite_users (:obj:`bool`): :obj:`True`, if the user can invite
             new users to the chat.
         can_post_messages (:obj:`bool`, optional): :obj:`True`, if the
-            administrator can post in the channel, channels only.
+            administrator can post messages in the channel, or access channel statistics;
+            for channels only.
         can_edit_messages (:obj:`bool`, optional): :obj:`True`, if the
             administrator can edit messages of other users and can pin
-            messages; channels only.
+            messages; for channels only.
         can_pin_messages (:obj:`bool`, optional): :obj:`True`, if the user is allowed
-            to pin messages; groups and supergroups only.
+            to pin messages; for groups and supergroups only.
+        can_post_stories (:obj:`bool`): :obj:`True`, if the administrator can post
+            stories to the chat.
+
+            .. versionadded:: 20.6
+            .. versionchanged:: 21.0
+                |non_optional_story_argument|
+        can_edit_stories (:obj:`bool`): :obj:`True`, if the administrator can edit stories posted
+            by other users, post stories to the chat page, pin chat stories, and access the chat's
+            story archive
+
+            .. versionadded:: 20.6
+            .. versionchanged:: 21.0
+                |non_optional_story_argument|
+        can_delete_stories (:obj:`bool`): :obj:`True`, if the administrator can delete
+            stories posted by other users.
+
+            .. versionadded:: 20.6
+            .. versionchanged:: 21.0
+                |non_optional_story_argument|
         can_manage_topics (:obj:`bool`, optional): :obj:`True`, if the user is allowed
-            to create, rename, close, and reopen forum topics; supergroups only.
+            to create, rename, close, and reopen forum topics; for supergroups only.
 
             .. versionadded:: 20.0
         custom_title (:obj:`str`, optional): Custom title for this user.
@@ -238,9 +261,8 @@ class ChatMemberAdministrator(ChatMember):
             is allowed to edit administrator privileges of that user.
         is_anonymous (:obj:`bool`): :obj:`True`, if the  user's
             presence in the chat is hidden.
-        can_manage_chat (:obj:`bool`): :obj:`True`, if the administrator
-            can access the chat event log, chat statistics, message statistics in
-            channels, see channel members, see anonymous administrators in supergroups
+        can_manage_chat (:obj:`bool`): :obj:`True`, if the administrator can access the chat event
+            log, get boost list, see hidden supergroup and channel members, report spam messages
             and ignore slow mode. Implied by any other administrator privilege.
         can_delete_messages (:obj:`bool`): :obj:`True`, if the
             administrator can delete messages of other users.
@@ -249,7 +271,7 @@ class ChatMemberAdministrator(ChatMember):
 
             .. versionadded:: 20.0
         can_restrict_members (:obj:`bool`): :obj:`True`, if the
-            administrator can restrict, ban or unban chat members.
+            administrator can restrict, ban or unban chat members, or access supergroup statistics.
         can_promote_members (:obj:`bool`): :obj:`True`, if the administrator can add new
             administrators with a subset of their own privileges or demote administrators
             that they have promoted, directly or indirectly (promoted by administrators that
@@ -259,14 +281,34 @@ class ChatMemberAdministrator(ChatMember):
         can_invite_users (:obj:`bool`): :obj:`True`, if the user can invite
             new users to the chat.
         can_post_messages (:obj:`bool`): Optional. :obj:`True`, if the
-            administrator can post in the channel, channels only.
+            administrator can post messages in the channel or access channel statistics;
+            for channels only.
         can_edit_messages (:obj:`bool`): Optional. :obj:`True`, if the
             administrator can edit messages of other users and can pin
-            messages; channels only.
+            messages; for channels only.
         can_pin_messages (:obj:`bool`): Optional. :obj:`True`, if the user is allowed
-            to pin messages; groups and supergroups only.
+            to pin messages; for groups and supergroups only.
+        can_post_stories (:obj:`bool`): :obj:`True`, if the administrator can post
+            stories to the chat.
+
+            .. versionadded:: 20.6
+            .. versionchanged:: 21.0
+                |non_optional_story_argument|
+        can_edit_stories (:obj:`bool`): :obj:`True`, if the administrator can edit stories posted
+            by other users, post stories to the chat page, pin chat stories, and access the chat's
+            story archive
+
+            .. versionadded:: 20.6
+            .. versionchanged:: 21.0
+                |non_optional_story_argument|
+        can_delete_stories (:obj:`bool`): :obj:`True`, if the administrator can delete
+            stories posted by other users.
+
+            .. versionadded:: 20.6
+            .. versionchanged:: 21.0
+                |non_optional_story_argument|
         can_manage_topics (:obj:`bool`): Optional. :obj:`True`, if the user is allowed
-            to create, rename, close, and reopen forum topics; supergroups only
+            to create, rename, close, and reopen forum topics; for supergroups only
 
             .. versionadded:: 20.0
         custom_title (:obj:`str`): Optional. Custom title for this user.
@@ -274,19 +316,22 @@ class ChatMemberAdministrator(ChatMember):
 
     __slots__ = (
         "can_be_edited",
-        "is_anonymous",
-        "can_manage_chat",
-        "can_delete_messages",
-        "can_manage_video_chats",
-        "can_restrict_members",
-        "can_promote_members",
         "can_change_info",
-        "can_invite_users",
-        "can_post_messages",
+        "can_delete_messages",
+        "can_delete_stories",
         "can_edit_messages",
-        "can_pin_messages",
+        "can_edit_stories",
+        "can_invite_users",
+        "can_manage_chat",
         "can_manage_topics",
+        "can_manage_video_chats",
+        "can_pin_messages",
+        "can_post_messages",
+        "can_post_stories",
+        "can_promote_members",
+        "can_restrict_members",
         "custom_title",
+        "is_anonymous",
     )
 
     def __init__(
@@ -301,6 +346,9 @@ class ChatMemberAdministrator(ChatMember):
         can_promote_members: bool,
         can_change_info: bool,
         can_invite_users: bool,
+        can_post_stories: bool,
+        can_edit_stories: bool,
+        can_delete_stories: bool,
         can_post_messages: Optional[bool] = None,
         can_edit_messages: Optional[bool] = None,
         can_pin_messages: Optional[bool] = None,
@@ -320,6 +368,10 @@ class ChatMemberAdministrator(ChatMember):
             self.can_promote_members: bool = can_promote_members
             self.can_change_info: bool = can_change_info
             self.can_invite_users: bool = can_invite_users
+            self.can_post_stories: bool = can_post_stories
+            self.can_edit_stories: bool = can_edit_stories
+            self.can_delete_stories: bool = can_delete_stories
+            # Optionals
             self.can_post_messages: Optional[bool] = can_post_messages
             self.can_edit_messages: Optional[bool] = can_edit_messages
             self.can_pin_messages: Optional[bool] = can_pin_messages
@@ -336,24 +388,34 @@ class ChatMemberMember(ChatMember):
 
     Args:
         user (:class:`telegram.User`): Information about the user.
+        until_date (:class:`datetime.datetime`, optional): Date when the user's subscription will
+            expire.
+
+            .. versionadded:: 21.5
 
     Attributes:
         status (:obj:`str`): The member's status in the chat,
             always :tg-const:`telegram.ChatMember.MEMBER`.
         user (:class:`telegram.User`): Information about the user.
+        until_date (:class:`datetime.datetime`): Optional. Date when the user's subscription will
+            expire.
+
+            .. versionadded:: 21.5
 
     """
 
-    __slots__ = ()
+    __slots__ = ("until_date",)
 
     def __init__(
         self,
         user: User,
+        until_date: Optional[dtm.datetime] = None,
         *,
         api_kwargs: Optional[JSONDict] = None,
     ):
         super().__init__(status=ChatMember.MEMBER, user=user, api_kwargs=api_kwargs)
-        self._freeze()
+        with self._unfrozen():
+            self.until_date: Optional[dtm.datetime] = until_date
 
 
 class ChatMemberRestricted(ChatMember):
@@ -470,22 +532,22 @@ class ChatMemberRestricted(ChatMember):
     """
 
     __slots__ = (
-        "is_member",
+        "can_add_web_page_previews",
         "can_change_info",
         "can_invite_users",
-        "can_pin_messages",
-        "can_send_messages",
-        "can_send_polls",
-        "can_send_other_messages",
-        "can_add_web_page_previews",
         "can_manage_topics",
-        "until_date",
+        "can_pin_messages",
         "can_send_audios",
         "can_send_documents",
+        "can_send_messages",
+        "can_send_other_messages",
         "can_send_photos",
-        "can_send_videos",
+        "can_send_polls",
         "can_send_video_notes",
+        "can_send_videos",
         "can_send_voice_notes",
+        "is_member",
+        "until_date",
     )
 
     def __init__(
@@ -500,7 +562,7 @@ class ChatMemberRestricted(ChatMember):
         can_send_other_messages: bool,
         can_add_web_page_previews: bool,
         can_manage_topics: bool,
-        until_date: datetime.datetime,
+        until_date: dtm.datetime,
         can_send_audios: bool,
         can_send_documents: bool,
         can_send_photos: bool,
@@ -521,7 +583,7 @@ class ChatMemberRestricted(ChatMember):
             self.can_send_other_messages: bool = can_send_other_messages
             self.can_add_web_page_previews: bool = can_add_web_page_previews
             self.can_manage_topics: bool = can_manage_topics
-            self.until_date: datetime.datetime = until_date
+            self.until_date: dtm.datetime = until_date
             self.can_send_audios: bool = can_send_audios
             self.can_send_documents: bool = can_send_documents
             self.can_send_photos: bool = can_send_photos
@@ -590,10 +652,10 @@ class ChatMemberBanned(ChatMember):
     def __init__(
         self,
         user: User,
-        until_date: datetime.datetime,
+        until_date: dtm.datetime,
         *,
         api_kwargs: Optional[JSONDict] = None,
     ):
         super().__init__(status=ChatMember.BANNED, user=user, api_kwargs=api_kwargs)
         with self._unfrozen():
-            self.until_date: datetime.datetime = until_date
+            self.until_date: dtm.datetime = until_date

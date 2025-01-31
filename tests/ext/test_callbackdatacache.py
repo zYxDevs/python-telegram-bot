@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 #
 # A library that provides a Python interface to the Telegram Bot API
-# Copyright (C) 2015-2023
+# Copyright (C) 2015-2025
 # Leandro Toledo de Souza <devs@python-telegram-bot.org>
 #
 # This program is free software: you can redistribute it and/or modify
@@ -16,9 +16,9 @@
 #
 # You should have received a copy of the GNU Lesser Public License
 # along with this program.  If not, see [http://www.gnu.org/licenses/].
+import datetime as dtm
 import time
 from copy import deepcopy
-from datetime import datetime
 from uuid import uuid4
 
 import pytest
@@ -31,7 +31,7 @@ from tests.auxil.envvars import TEST_WITH_OPT_DEPS
 from tests.auxil.slots import mro_slots
 
 
-@pytest.fixture()
+@pytest.fixture
 def callback_data_cache(bot):
     return CallbackDataCache(bot)
 
@@ -159,8 +159,8 @@ class TestCallbackDataCache:
         out2 = cdc.process_keyboard(reply_markup)
         assert len(cdc.persistence_data[0]) == 1
 
-        keyboard_1, button_1 = cdc.extract_uuids(out1.inline_keyboard[0][1].callback_data)
-        keyboard_2, button_2 = cdc.extract_uuids(out2.inline_keyboard[0][2].callback_data)
+        keyboard_1, _ = cdc.extract_uuids(out1.inline_keyboard[0][1].callback_data)
+        keyboard_2, _ = cdc.extract_uuids(out2.inline_keyboard[0][2].callback_data)
         assert cdc.persistence_data[0][0][0] != keyboard_1
         assert cdc.persistence_data[0][0][0] == keyboard_2
 
@@ -181,7 +181,9 @@ class TestCallbackDataCache:
             callback_data_cache.clear_callback_data()
 
         chat = Chat(1, "private")
-        effective_message = Message(message_id=1, date=datetime.now(), chat=chat, reply_markup=out)
+        effective_message = Message(
+            message_id=1, date=dtm.datetime.now(), chat=chat, reply_markup=out
+        )
         effective_message._unfreeze()
         effective_message.reply_to_message = deepcopy(effective_message)
         effective_message.pinned_message = deepcopy(effective_message)
@@ -374,9 +376,9 @@ class TestCallbackDataCache:
         if time_method == "time":
             cutoff = time.time()
         elif time_method == "datetime":
-            cutoff = datetime.now(UTC)
+            cutoff = dtm.datetime.now(UTC)
         else:
-            cutoff = datetime.now(tz_bot.defaults.tzinfo).replace(tzinfo=None)
+            cutoff = dtm.datetime.now(tz_bot.defaults.tzinfo).replace(tzinfo=None)
             callback_data_cache.bot = tz_bot
         time.sleep(0.1)
 

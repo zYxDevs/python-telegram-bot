@@ -25,6 +25,8 @@
           - Used for sending documents
         * - :meth:`~telegram.Bot.send_game`
           - Used for sending a game
+        * - :meth:`~telegram.Bot.send_gift`
+          - Used for sending a gift
         * - :meth:`~telegram.Bot.send_invoice`
           - Used for sending an invoice
         * - :meth:`~telegram.Bot.send_location`
@@ -33,6 +35,8 @@
           - Used for sending media grouped together
         * - :meth:`~telegram.Bot.send_message`
           - Used for sending text messages
+        * - :meth:`~telegram.Bot.send_paid_media`
+          - Used for sending paid media to channels
         * - :meth:`~telegram.Bot.send_photo`
           - Used for sending photos
         * - :meth:`~telegram.Bot.send_poll`
@@ -49,8 +53,12 @@
           - Used for sending voice messages
         * - :meth:`~telegram.Bot.copy_message`
           - Used for copying the contents of an arbitrary message
+        * - :meth:`~telegram.Bot.copy_messages`
+          - Used for copying the contents of an multiple arbitrary messages
         * - :meth:`~telegram.Bot.forward_message`
           - Used for forwarding messages
+        * - :meth:`~telegram.Bot.forward_messages`
+          - Used for forwarding multiple messages at once
 
 .. raw:: html
 
@@ -76,6 +84,10 @@
       - Used for answering a shipping query
     * - :meth:`~telegram.Bot.answer_web_app_query`
       - Used for answering a web app query
+    * - :meth:`~telegram.Bot.delete_message`
+      - Used for deleting messages.
+    * - :meth:`~telegram.Bot.delete_messages`
+      - Used for deleting multiple messages as once.
     * - :meth:`~telegram.Bot.edit_message_caption`
       - Used for editing captions
     * - :meth:`~telegram.Bot.edit_message_media`
@@ -88,8 +100,8 @@
       - Used for editing text messages
     * - :meth:`~telegram.Bot.stop_poll`
       - Used for stopping the running poll
-    * - :meth:`~telegram.Bot.delete_message`
-      - Used for deleting messages.
+    * - :meth:`~telegram.Bot.set_message_reaction`
+      - Used for setting reactions on messages
 
 .. raw:: html
 
@@ -105,6 +117,10 @@
     :align: left
     :widths: 1 4
 
+    * - :meth:`~telegram.Bot.approve_chat_join_request`
+      - Used for approving a chat join request
+    * - :meth:`~telegram.Bot.decline_chat_join_request`
+      - Used for declining a chat join request
     * - :meth:`~telegram.Bot.ban_chat_member`
       - Used for banning a member from the chat
     * - :meth:`~telegram.Bot.unban_chat_member`
@@ -129,10 +145,6 @@
       - Used for editing a non-primary invite link
     * - :meth:`~telegram.Bot.revoke_chat_invite_link`
       - Used for revoking an invite link created by the bot
-    * - :meth:`~telegram.Bot.approve_chat_join_request`
-      - Used for approving a chat join request
-    * - :meth:`~telegram.Bot.decline_chat_join_request`
-      - Used for declining a chat join request
     * - :meth:`~telegram.Bot.set_chat_photo`
       - Used for setting a photo to a chat
     * - :meth:`~telegram.Bot.delete_chat_photo`
@@ -141,12 +153,16 @@
       - Used for setting a chat title
     * - :meth:`~telegram.Bot.set_chat_description`
       - Used for setting the description of a chat
+    * - :meth:`~telegram.Bot.set_user_emoji_status`
+      - Used for setting the users status emoji
     * - :meth:`~telegram.Bot.pin_chat_message`
       - Used for pinning a message
     * - :meth:`~telegram.Bot.unpin_chat_message`
       - Used for unpinning a message
     * - :meth:`~telegram.Bot.unpin_all_chat_messages`
       - Used for unpinning all pinned chat messages
+    * - :meth:`~telegram.Bot.get_business_connection`
+      - Used for getting information about the business account.
     * - :meth:`~telegram.Bot.get_user_profile_photos`
       - Used for obtaining user's profile pictures
     * - :meth:`~telegram.Bot.get_chat`
@@ -157,8 +173,33 @@
       - Used for getting the number of members in a chat
     * - :meth:`~telegram.Bot.get_chat_member`
       - Used for getting a member of a chat
+    * - :meth:`~telegram.Bot.get_user_chat_boosts`
+      - Used for getting the list of boosts added to a chat
     * - :meth:`~telegram.Bot.leave_chat`
       - Used for leaving a chat
+
+.. raw:: html
+
+   </details>
+   <br>
+
+.. raw:: html
+
+   <details>
+   <summary>Verification on behalf of an organization</summary>
+
+.. list-table::
+    :align: left
+    :widths: 1 4
+
+    * - :meth:`~telegram.Bot.verify_chat`
+      - Used for verifying a chat
+    * - :meth:`~telegram.Bot.verify_user`
+      - Used for verifying a user
+    * - :meth:`~telegram.Bot.remove_chat_verification`
+      - Used for removing the verification from a chat
+    * - :meth:`~telegram.Bot.remove_user_verification`
+      - Used for removing the verification from a user
 
 .. raw:: html
 
@@ -227,6 +268,8 @@
       - Used for setting a sticker set of a chat
     * - :meth:`~telegram.Bot.delete_chat_sticker_set`
       - Used for deleting the set sticker set of a chat
+    * - :meth:`~telegram.Bot.replace_sticker_in_set`
+      - Used for replacing a sticker in a set
     * - :meth:`~telegram.Bot.set_sticker_position_in_set`
       - Used for moving a sticker's position in the set
     * - :meth:`~telegram.Bot.set_sticker_set_title`
@@ -339,7 +382,7 @@
 .. raw:: html
 
    <details>
-   <summary>Miscellaneous</summary>
+   <summary>Payments and Stars</summary>
 
 .. list-table::
     :align: left
@@ -347,14 +390,39 @@
 
     * - :meth:`~telegram.Bot.create_invoice_link`
       - Used to generate an HTTP link for an invoice
+    * - :meth:`~telegram.Bot.edit_user_star_subscription`
+      - Used for editing a user's star subscription
+    * - :meth:`~telegram.Bot.get_star_transactions`
+      - Used for obtaining the bot's Telegram Stars transactions
+    * - :meth:`~telegram.Bot.refund_star_payment`
+      - Used for refunding a payment in Telegram Stars
+
+.. raw:: html
+
+   </details>
+   <br>
+
+.. raw:: html
+
+   <details>
+   <summary>Miscellaneous</summary>
+
+.. list-table::
+    :align: left
+    :widths: 1 4
+
     * - :meth:`~telegram.Bot.close`
       - Used for closing server instance when switching to another local server
     * - :meth:`~telegram.Bot.log_out`
       - Used for logging out from cloud Bot API server
     * - :meth:`~telegram.Bot.get_file`
       - Used for getting basic info about a file
+    * - :meth:`~telegram.Bot.get_available_gifts`
+      - Used for getting information about gifts available for sending
     * - :meth:`~telegram.Bot.get_me`
       - Used for getting basic information about the bot
+    * - :meth:`~telegram.Bot.save_prepared_inline_message`
+      - Used for storing a message to be sent by a user of a Mini App
 
 .. raw:: html
 
