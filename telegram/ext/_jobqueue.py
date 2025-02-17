@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 #
 # A library that provides a Python interface to the Telegram Bot API
-# Copyright (C) 2015-2023
+# Copyright (C) 2015-2025
 # Leandro Toledo de Souza <devs@python-telegram-bot.org>
 #
 # This program is free software: you can redistribute it and/or modify
@@ -18,12 +18,12 @@
 # along with this program.  If not, see [http://www.gnu.org/licenses/].
 """This module contains the classes JobQueue and Job."""
 import asyncio
-import datetime
+import datetime as dtm
+import re
 import weakref
-from typing import TYPE_CHECKING, Any, Generic, Optional, Tuple, Union, cast, overload
+from typing import TYPE_CHECKING, Any, Generic, Optional, Union, cast, overload
 
 try:
-    import pytz
     from apscheduler.executors.asyncio import AsyncIOExecutor
     from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
@@ -31,13 +31,16 @@ try:
 except ImportError:
     APS_AVAILABLE = False
 
+from telegram._utils.datetime import UTC, localize
+from telegram._utils.logging import get_logger
 from telegram._utils.repr import build_repr_with_selected_attrs
 from telegram._utils.types import JSONDict
-from telegram._utils.warnings import warn
 from telegram.ext._extbot import ExtBot
 from telegram.ext._utils.types import CCT, JobCallback
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable
+
     if APS_AVAILABLE:
         from apscheduler.job import Job as APSJob
 
@@ -45,6 +48,7 @@ if TYPE_CHECKING:
 
 
 _ALL_DAYS = tuple(range(7))
+_LOGGER = get_logger(__name__, class_name="JobQueue")
 
 
 class JobQueue(Generic[CCT]):
@@ -76,13 +80,24 @@ class JobQueue(Generic[CCT]):
     Attributes:
         scheduler (:class:`apscheduler.schedulers.asyncio.AsyncIOScheduler`): The scheduler.
 
+            Warning:
+                This scheduler is configured by :meth:`set_application`. Additional configuration
+                settings can be made by users. However, calling
+                :meth:`~apscheduler.schedulers.base.BaseScheduler.configure` will delete any
+                previous configuration settings. Therefore, please make sure to pass the values
+                returned by :attr:`scheduler_configuration` to the method call in addition to your
+                custom values.
+                Alternatively, you can also use methods like
+                :meth:`~apscheduler.schedulers.base.BaseScheduler.add_jobstore` to avoid using
+                :meth:`~apscheduler.schedulers.base.BaseScheduler.configure` altogether.
+
             .. versionchanged:: 20.0
                 Uses :class:`~apscheduler.schedulers.asyncio.AsyncIOScheduler` instead of
                 :class:`~apscheduler.schedulers.background.BackgroundScheduler`
 
     """
 
-    __slots__ = ("_application", "scheduler", "_executor")
+    __slots__ = ("_application", "_executor", "scheduler")
     _CRON_MAPPING = ("sun", "mon", "tue", "wed", "thu", "fri", "sat")
 
     def __init__(self) -> None:
@@ -94,8 +109,8 @@ class JobQueue(Generic[CCT]):
 
         self._application: Optional[weakref.ReferenceType[Application]] = None
         self._executor = AsyncIOExecutor()
-        self.scheduler: AsyncIOScheduler = AsyncIOScheduler(
-            timezone=pytz.utc, executors={"default": self._executor}
+        self.scheduler: "AsyncIOScheduler" = AsyncIOScheduler(  # noqa: UP037
+            **self.scheduler_configuration
         )
 
     def __repr__(self) -> str:
@@ -119,40 +134,77 @@ class JobQueue(Generic[CCT]):
             return application
         raise RuntimeError("The application instance is no longer alive.")
 
-    def _tz_now(self) -> datetime.datetime:
-        return datetime.datetime.now(self.scheduler.timezone)
+    @property
+    def scheduler_configuration(self) -> JSONDict:
+        """Provides configuration values that are used by :class:`JobQueue` for :attr:`scheduler`.
+
+        Tip:
+            Since calling
+            :meth:`scheduler.configure() <apscheduler.schedulers.base.BaseScheduler.configure>`
+            deletes any previous setting, please make sure to pass these values to the method call
+            in addition to your custom values:
+
+            .. code-block:: python
+
+                scheduler.configure(..., **job_queue.scheduler_configuration)
+
+            Alternatively, you can also use methods like
+            :meth:`~apscheduler.schedulers.base.BaseScheduler.add_jobstore` to avoid using
+            :meth:`~apscheduler.schedulers.base.BaseScheduler.configure` altogether.
+
+        .. versionadded:: 20.7
+
+        Returns:
+            dict[:obj:`str`, :obj:`object`]: The configuration values as dictionary.
+
+        """
+        timezone: dtm.tzinfo = UTC
+        if (
+            self._application
+            and isinstance(self.application.bot, ExtBot)
+            and self.application.bot.defaults
+        ):
+            timezone = self.application.bot.defaults.tzinfo or UTC
+
+        return {
+            "timezone": timezone,
+            "executors": {"default": self._executor},
+        }
+
+    def _tz_now(self) -> dtm.datetime:
+        return dtm.datetime.now(self.scheduler.timezone)
 
     @overload
-    def _parse_time_input(self, time: None, shift_day: bool = False) -> None:
-        ...
+    def _parse_time_input(self, time: None, shift_day: bool = False) -> None: ...
 
     @overload
     def _parse_time_input(
         self,
-        time: Union[float, datetime.timedelta, datetime.datetime, datetime.time],
+        time: Union[float, dtm.timedelta, dtm.datetime, dtm.time],
         shift_day: bool = False,
-    ) -> datetime.datetime:
-        ...
+    ) -> dtm.datetime: ...
 
     def _parse_time_input(
         self,
-        time: Union[float, datetime.timedelta, datetime.datetime, datetime.time, None],
+        time: Union[float, dtm.timedelta, dtm.datetime, dtm.time, None],
         shift_day: bool = False,
-    ) -> Optional[datetime.datetime]:
+    ) -> Optional[dtm.datetime]:
         if time is None:
             return None
         if isinstance(time, (int, float)):
-            return self._tz_now() + datetime.timedelta(seconds=time)
-        if isinstance(time, datetime.timedelta):
+            return self._tz_now() + dtm.timedelta(seconds=time)
+        if isinstance(time, dtm.timedelta):
             return self._tz_now() + time
-        if isinstance(time, datetime.time):
-            date_time = datetime.datetime.combine(
-                datetime.datetime.now(tz=time.tzinfo or self.scheduler.timezone).date(), time
+        if isinstance(time, dtm.time):
+            date_time = dtm.datetime.combine(
+                dtm.datetime.now(tz=time.tzinfo or self.scheduler.timezone).date(), time
             )
             if date_time.tzinfo is None:
-                date_time = self.scheduler.timezone.localize(date_time)
-            if shift_day and date_time <= datetime.datetime.now(pytz.utc):
-                date_time += datetime.timedelta(days=1)
+                # dtm.combine uses the tzinfo of `time`, which might be None, so we still have
+                # to localize it
+                date_time = localize(date_time, self.scheduler.timezone)
+            if shift_day and date_time <= dtm.datetime.now(UTC):
+                date_time += dtm.timedelta(days=1)
             return date_time
         return time
 
@@ -166,11 +218,7 @@ class JobQueue(Generic[CCT]):
 
         """
         self._application = weakref.ref(application)
-        if isinstance(application.bot, ExtBot) and application.bot.defaults:
-            self.scheduler.configure(
-                timezone=application.bot.defaults.tzinfo or pytz.utc,
-                executors={"default": self._executor},
-            )
+        self.scheduler.configure(**self.scheduler_configuration)
 
     @staticmethod
     async def job_callback(job_queue: "JobQueue[CCT]", job: "Job[CCT]") -> None:
@@ -199,7 +247,7 @@ class JobQueue(Generic[CCT]):
     def run_once(
         self,
         callback: JobCallback[CCT],
-        when: Union[float, datetime.timedelta, datetime.datetime, datetime.time],
+        when: Union[float, dtm.timedelta, dtm.datetime, dtm.time],
         data: Optional[object] = None,
         name: Optional[str] = None,
         chat_id: Optional[int] = None,
@@ -283,9 +331,9 @@ class JobQueue(Generic[CCT]):
     def run_repeating(
         self,
         callback: JobCallback[CCT],
-        interval: Union[float, datetime.timedelta],
-        first: Optional[Union[float, datetime.timedelta, datetime.datetime, datetime.time]] = None,
-        last: Optional[Union[float, datetime.timedelta, datetime.datetime, datetime.time]] = None,
+        interval: Union[float, dtm.timedelta],
+        first: Optional[Union[float, dtm.timedelta, dtm.datetime, dtm.time]] = None,
+        last: Optional[Union[float, dtm.timedelta, dtm.datetime, dtm.time]] = None,
         data: Optional[object] = None,
         name: Optional[str] = None,
         chat_id: Optional[int] = None,
@@ -390,7 +438,7 @@ class JobQueue(Generic[CCT]):
         if dt_last and dt_first and dt_last < dt_first:
             raise ValueError("'last' must not be before 'first'!")
 
-        if isinstance(interval, datetime.timedelta):
+        if isinstance(interval, dtm.timedelta):
             interval = interval.total_seconds()
 
         j = self.scheduler.add_job(
@@ -410,7 +458,7 @@ class JobQueue(Generic[CCT]):
     def run_monthly(
         self,
         callback: JobCallback[CCT],
-        when: datetime.time,
+        when: dtm.time,
         day: int,
         data: Optional[object] = None,
         name: Optional[str] = None,
@@ -488,8 +536,8 @@ class JobQueue(Generic[CCT]):
     def run_daily(
         self,
         callback: JobCallback[CCT],
-        time: datetime.time,
-        days: Tuple[int, ...] = _ALL_DAYS,
+        time: dtm.time,
+        days: tuple[int, ...] = _ALL_DAYS,
         data: Optional[object] = None,
         name: Optional[str] = None,
         chat_id: Optional[int] = None,
@@ -513,7 +561,7 @@ class JobQueue(Generic[CCT]):
             time (:obj:`datetime.time`): Time of day at which the job should run. If the timezone
                 (:obj:`datetime.time.tzinfo`) is :obj:`None`, the default timezone of the bot will
                 be used, which is UTC unless :attr:`telegram.ext.Defaults.tzinfo` is used.
-            days (Tuple[:obj:`int`], optional): Defines on which days of the week the job should
+            days (tuple[:obj:`int`], optional): Defines on which days of the week the job should
                 run (where ``0-6`` correspond to sunday - saturday). By default, the job will run
                 every day.
 
@@ -547,13 +595,6 @@ class JobQueue(Generic[CCT]):
             queue.
 
         """
-        # TODO: After v20.0, we should remove this warning.
-        if days != tuple(range(7)):  # checks if user passed a custom value
-            warn(
-                "Prior to v20.0 the `days` parameter was not aligned to that of cron's weekday "
-                "scheme. We recommend double checking if the passed value is correct.",
-                stacklevel=2,
-            )
         if not job_kwargs:
             job_kwargs = {}
 
@@ -657,22 +698,43 @@ class JobQueue(Generic[CCT]):
             # so give it a tiny bit of time to actually shut down.
             await asyncio.sleep(0.01)
 
-    def jobs(self) -> Tuple["Job[CCT]", ...]:
+    def jobs(self, pattern: Union[str, re.Pattern[str], None] = None) -> tuple["Job[CCT]", ...]:
         """Returns a tuple of all *scheduled* jobs that are currently in the :class:`JobQueue`.
 
-        Returns:
-            Tuple[:class:`Job`]: Tuple of all *scheduled* jobs.
-        """
-        return tuple(Job.from_aps_job(job) for job in self.scheduler.get_jobs())
+        Args:
+            pattern (:obj:`str` | :obj:`re.Pattern`, optional): A regular expression pattern. If
+                passed, only jobs whose name matches the pattern will be returned.
+                Defaults to :obj:`None`.
 
-    def get_jobs_by_name(self, name: str) -> Tuple["Job[CCT]", ...]:
-        """Returns a tuple of all *pending/scheduled* jobs with the given name that are currently
+                Hint:
+                    This uses :func:`re.search` and not :func:`re.match`.
+
+                .. versionadded:: 21.10
+
+        Returns:
+            tuple[:class:`Job`]: Tuple of all *scheduled* jobs.
+        """
+        jobs_generator: Iterable[Job] = (
+            Job.from_aps_job(job) for job in self.scheduler.get_jobs()
+        )
+        if pattern is None:
+            return tuple(jobs_generator)
+        return tuple(
+            job for job in jobs_generator if (job.name and re.compile(pattern).search(job.name))
+        )
+
+    def get_jobs_by_name(self, name: str) -> tuple["Job[CCT]", ...]:
+        """Returns a tuple of all *scheduled* jobs with the given name that are currently
         in the :class:`JobQueue`.
 
+        Hint:
+            This method is a convenience wrapper for :meth:`jobs` with a pattern that matches the
+            given name.
+
         Returns:
-            Tuple[:class:`Job`]: Tuple of all *pending* or *scheduled* jobs matching the name.
+            tuple[:class:`Job`]: Tuple of all *scheduled* jobs matching the name.
         """
-        return tuple(job for job in self.jobs() if job.name == name)
+        return self.jobs(f"^{re.escape(name)}$")
 
 
 class Job(Generic[CCT]):
@@ -743,13 +805,13 @@ class Job(Generic[CCT]):
     """
 
     __slots__ = (
-        "callback",
-        "data",
-        "name",
-        "_removed",
         "_enabled",
         "_job",
+        "_removed",
+        "callback",
         "chat_id",
+        "data",
+        "name",
         "user_id",
     )
 
@@ -776,9 +838,23 @@ class Job(Generic[CCT]):
         self._removed = False
         self._enabled = False
 
-        self._job = cast("APSJob", None)  # skipcq: PTC-W0052
+        self._job = cast("APSJob", None)
 
     def __getattr__(self, item: str) -> object:
+        """Overrides :py:meth:`object.__getattr__` to get specific attribute of the
+        :class:`telegram.ext.Job` object or of its attribute :class:`apscheduler.job.Job`,
+        if exists.
+
+        Args:
+           item (:obj:`str`): The name of the attribute.
+
+        Returns:
+            :object: The value of the attribute.
+
+        Raises:
+            :exc:`AttributeError`: If the attribute does not exist in both
+                :class:`telegram.ext.Job` and :class:`apscheduler.job.Job` objects.
+        """
         try:
             return getattr(self.job, item)
         except AttributeError as exc:
@@ -787,11 +863,25 @@ class Job(Generic[CCT]):
             ) from exc
 
     def __eq__(self, other: object) -> bool:
+        """Defines equality condition for the :class:`telegram.ext.Job` object.
+        Two objects of this class are considered to be equal if their
+        :class:`id <apscheduler.job.Job>` are equal.
+
+        Returns:
+            :obj:`True` if both objects have :paramref:`id` parameters identical.
+            :obj:`False` otherwise.
+        """
         if isinstance(other, self.__class__):
             return self.id == other.id
         return False
 
     def __hash__(self) -> int:
+        """Builds a hash value for this object such that the hash of two objects is
+        equal if and only if the objects are equal in terms of :meth:`__eq__`.
+
+        Returns:
+            :obj:`int`: The hash value of the object.
+        """
         return hash(self.id)
 
     def __repr__(self) -> str:
@@ -840,7 +930,7 @@ class Job(Generic[CCT]):
         self._enabled = status
 
     @property
-    def next_t(self) -> Optional[datetime.datetime]:
+    def next_t(self) -> Optional[dtm.datetime]:
         """
         :class:`datetime.datetime`: Datetime for the next job execution.
         Datetime is localized according to :attr:`datetime.datetime.tzinfo`.
@@ -893,7 +983,16 @@ class Job(Generic[CCT]):
         self, application: "Application[Any, CCT, Any, Any, Any, JobQueue[CCT]]"
     ) -> None:
         try:
-            context = application.context_types.context.from_job(self, application)
+            try:
+                context = application.context_types.context.from_job(self, application)
+            except Exception as exc:
+                _LOGGER.critical(
+                    "Error while building CallbackContext for job %s. Job will not be run.",
+                    self._job,
+                    exc_info=exc,
+                )
+                return
+
             await context.refresh_data()
             await self.callback(context)
         except Exception as exc:

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 #
 # A library that provides a Python interface to the Telegram Bot API
-# Copyright (C) 2015-2023
+# Copyright (C) 2015-2025
 # Leandro Toledo de Souza <devs@python-telegram-bot.org>
 #
 # This program is free software: you can redistribute it and/or modify
@@ -17,10 +17,12 @@
 # You should have received a copy of the GNU Lesser Public License
 # along with this program.  If not, see [http://www.gnu.org/licenses/].
 """This module contains objects related to Telegram menu buttons."""
-from typing import TYPE_CHECKING, Dict, Final, Optional, Type
+from typing import TYPE_CHECKING, Final, Optional
 
 from telegram import constants
 from telegram._telegramobject import TelegramObject
+from telegram._utils import enum
+from telegram._utils.argumentparsing import de_json_optional
 from telegram._utils.types import JSONDict
 from telegram._webappinfo import WebAppInfo
 
@@ -55,23 +57,30 @@ class MenuButton(TelegramObject):
     __slots__ = ("type",)
 
     def __init__(
-        self, type: str, *, api_kwargs: Optional[JSONDict] = None  # skipcq: PYL-W0622
+        self,
+        type: str,
+        *,
+        api_kwargs: Optional[JSONDict] = None,
     ):  # pylint: disable=redefined-builtin
         super().__init__(api_kwargs=api_kwargs)
-        self.type: str = type
+        self.type: str = enum.get_member(constants.MenuButtonType, type, type)
 
         self._id_attrs = (self.type,)
 
         self._freeze()
 
     @classmethod
-    def de_json(cls, data: Optional[JSONDict], bot: "Bot") -> Optional["MenuButton"]:
+    def de_json(cls, data: JSONDict, bot: Optional["Bot"] = None) -> "MenuButton":
         """Converts JSON data to the appropriate :class:`MenuButton` object, i.e. takes
         care of selecting the correct subclass.
 
         Args:
-            data (Dict[:obj:`str`, ...]): The JSON data.
-            bot (:class:`telegram.Bot`): The bot associated with this object.
+            data (dict[:obj:`str`, ...]): The JSON data.
+            bot (:class:`telegram.Bot`, optional): The bot associated with this object. Defaults to
+                :obj:`None`, in which case shortcut methods will not be available.
+
+                .. versionchanged:: 21.4
+                   :paramref:`bot` is now optional and defaults to :obj:`None`
 
         Returns:
             The Telegram object.
@@ -79,13 +88,7 @@ class MenuButton(TelegramObject):
         """
         data = cls._parse_data(data)
 
-        if data is None:
-            return None
-
-        if not data and cls is MenuButton:
-            return None
-
-        _class_mapping: Dict[str, Type[MenuButton]] = {
+        _class_mapping: dict[str, type[MenuButton]] = {
             cls.COMMANDS: MenuButtonCommands,
             cls.WEB_APP: MenuButtonWebApp,
             cls.DEFAULT: MenuButtonDefault,
@@ -135,7 +138,10 @@ class MenuButtonWebApp(MenuButton):
         web_app (:class:`telegram.WebAppInfo`): Description of the Web App that will be launched
             when the user presses the button. The Web App will be able to send an arbitrary
             message on behalf of the user using the method :meth:`~telegram.Bot.answerWebAppQuery`
-            of :class:`~telegram.Bot`.
+            of :class:`~telegram.Bot`. Alternatively, a ``t.me`` link to a Web App of the bot can
+            be specified in the object instead of the Web App's URL, in which case the Web App
+            will be opened as if the user pressed the link.
+
 
     Attributes:
         type (:obj:`str`): :tg-const:`telegram.constants.MenuButtonType.WEB_APP`.
@@ -143,7 +149,9 @@ class MenuButtonWebApp(MenuButton):
         web_app (:class:`telegram.WebAppInfo`): Description of the Web App that will be launched
             when the user presses the button. The Web App will be able to send an arbitrary
             message on behalf of the user using the method :meth:`~telegram.Bot.answerWebAppQuery`
-            of :class:`~telegram.Bot`.
+            of :class:`~telegram.Bot`. Alternatively, a ``t.me`` link to a Web App of the bot can
+            be specified in the object instead of the Web App's URL, in which case the Web App
+            will be opened as if the user pressed the link.
     """
 
     __slots__ = ("text", "web_app")
@@ -157,14 +165,11 @@ class MenuButtonWebApp(MenuButton):
             self._id_attrs = (self.type, self.text, self.web_app)
 
     @classmethod
-    def de_json(cls, data: Optional[JSONDict], bot: "Bot") -> Optional["MenuButtonWebApp"]:
+    def de_json(cls, data: JSONDict, bot: Optional["Bot"] = None) -> "MenuButtonWebApp":
         """See :meth:`telegram.TelegramObject.de_json`."""
         data = cls._parse_data(data)
 
-        if not data:
-            return None
-
-        data["web_app"] = WebAppInfo.de_json(data.get("web_app"), bot)
+        data["web_app"] = de_json_optional(data.get("web_app"), WebAppInfo, bot)
 
         return super().de_json(data=data, bot=bot)  # type: ignore[return-value]
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 #
 # A library that provides a Python interface to the Telegram Bot API
-# Copyright (C) 2015-2023
+# Copyright (C) 2015-2025
 # Leandro Toledo de Souza <devs@python-telegram-bot.org>
 #
 # This program is free software: you can redistribute it and/or modify
@@ -22,10 +22,11 @@ We mostly test on directly on AIORateLimiter here, b/c BaseRateLimiter doesn't c
 notable
 """
 import asyncio
+import datetime as dtm
 import json
 import platform
 import time
-from datetime import datetime
+from collections import Counter
 from http import HTTPStatus
 
 import pytest
@@ -35,7 +36,7 @@ from telegram.constants import ParseMode
 from telegram.error import RetryAfter
 from telegram.ext import AIORateLimiter, BaseRateLimiter, Defaults, ExtBot
 from telegram.request import BaseRequest, RequestData
-from tests.auxil.envvars import GITHUB_ACTION, TEST_WITH_OPT_DEPS
+from tests.auxil.envvars import GITHUB_ACTIONS, TEST_WITH_OPT_DEPS
 
 
 @pytest.mark.skipif(
@@ -142,13 +143,15 @@ class TestBaseRateLimiter:
     not TEST_WITH_OPT_DEPS, reason="Only relevant if the optional dependency is installed"
 )
 @pytest.mark.skipif(
-    bool(GITHUB_ACTION and platform.system() == "Darwin"),
+    GITHUB_ACTIONS and platform.system() == "Darwin",
     reason="The timings are apparently rather inaccurate on MacOS.",
 )
 @pytest.mark.flaky(10, 1)  # Timings aren't quite perfect
 class TestAIORateLimiter:
     count = 0
+    apb_count = 0
     call_times = []
+    apb_call_times = []
 
     class CountRequest(BaseRequest):
         def __init__(self, retry_after=None):
@@ -161,8 +164,16 @@ class TestAIORateLimiter:
             pass
 
         async def do_request(self, *args, **kwargs):
-            TestAIORateLimiter.count += 1
-            TestAIORateLimiter.call_times.append(time.time())
+            request_data = kwargs.get("request_data")
+            allow_paid_broadcast = request_data.parameters.get("allow_paid_broadcast", False)
+
+            if allow_paid_broadcast:
+                TestAIORateLimiter.apb_count += 1
+                TestAIORateLimiter.apb_call_times.append(time.time())
+            else:
+                TestAIORateLimiter.count += 1
+                TestAIORateLimiter.call_times.append(time.time())
+
             if self.retry_after:
                 raise RetryAfter(retry_after=1)
 
@@ -181,7 +192,7 @@ class TestAIORateLimiter:
                         {
                             "ok": True,
                             "result": Message(
-                                message_id=1, date=datetime.now(), chat=Chat(1, "chat")
+                                message_id=1, date=dtm.datetime.now(), chat=Chat(1, "chat")
                             ).to_dict(),
                         }
                     ).encode(),
@@ -190,10 +201,10 @@ class TestAIORateLimiter:
 
     @pytest.fixture(autouse=True)
     def _reset(self):
-        self.count = 0
         TestAIORateLimiter.count = 0
-        self.call_times = []
         TestAIORateLimiter.call_times = []
+        TestAIORateLimiter.apb_count = 0
+        TestAIORateLimiter.apb_call_times = []
 
     @pytest.mark.parametrize("max_retries", [0, 1, 4])
     async def test_max_retries(self, bot, max_retries):
@@ -358,3 +369,58 @@ class TestAIORateLimiter:
         finally:
             TestAIORateLimiter.count = 0
             TestAIORateLimiter.call_times = []
+
+    async def test_allow_paid_broadcast(self, bot):
+        try:
+            rl_bot = ExtBot(
+                token=bot.token,
+                request=self.CountRequest(retry_after=None),
+                rate_limiter=AIORateLimiter(),
+            )
+
+            async with rl_bot:
+                apb_tasks = {}
+                non_apb_tasks = {}
+                for i in range(3000):
+                    apb_tasks[i] = asyncio.create_task(
+                        rl_bot.send_message(chat_id=-1, text="test", allow_paid_broadcast=True)
+                    )
+
+                number = 2
+                for i in range(number):
+                    non_apb_tasks[i] = asyncio.create_task(
+                        rl_bot.send_message(chat_id=-1, text="test")
+                    )
+                    non_apb_tasks[i + number] = asyncio.create_task(
+                        rl_bot.send_message(chat_id=-1, text="test", allow_paid_broadcast=False)
+                    )
+
+                await asyncio.sleep(0.1)
+                # We expect 5 non-apb requests:
+                # 1: `get_me` from `async with rl_bot`
+                # 2-5: `send_message`
+                assert TestAIORateLimiter.count == 5
+                assert sum(1 for task in non_apb_tasks.values() if task.done()) == 4
+
+                # ~2 second after start
+                # We do the checks once all apb_tasks are done as apparently getting the timings
+                # right to check after 1 second is hard
+                await asyncio.sleep(2.1 - 0.1)
+                assert all(task.done() for task in apb_tasks.values())
+
+                apb_call_times = [
+                    ct - TestAIORateLimiter.apb_call_times[0]
+                    for ct in TestAIORateLimiter.apb_call_times
+                ]
+                apb_call_times_dict = Counter(map(int, apb_call_times))
+
+                # We expect ~2000 apb requests after the first second
+                # 2000 (>>1000), since we have a floating window logic such that an initial
+                # burst is allowed that is hard to measure in the tests
+                assert apb_call_times_dict[0] <= 2000
+                assert apb_call_times_dict[0] + apb_call_times_dict[1] < 3000
+                assert sum(apb_call_times_dict.values()) == 3000
+
+        finally:
+            # cleanup
+            await asyncio.gather(*apb_tasks.values(), *non_apb_tasks.values())

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 #
 # A library that provides a Python interface to the Telegram Bot API
-# Copyright (C) 2015-2023
+# Copyright (C) 2015-2025
 # Leandro Toledo de Souza <devs@python-telegram-bot.org>
 #
 # This program is free software: you can redistribute it and/or modify
@@ -26,7 +26,8 @@ Warning:
     the changelog.
 """
 from collections import UserDict
-from typing import Final, Generic, List, Mapping, Optional, Set, Tuple, TypeVar, Union
+from collections.abc import Mapping
+from typing import Final, Generic, Optional, TypeVar, Union
 
 from telegram._utils.defaultvalue import DEFAULT_NONE, DefaultValue
 
@@ -52,7 +53,7 @@ class TrackingDict(UserDict, Generic[_KT, _VT]):
 
     def __init__(self) -> None:
         super().__init__()
-        self._write_access_keys: Set[_KT] = set()
+        self._write_access_keys: set[_KT] = set()
 
     def __setitem__(self, key: _KT, value: _VT) -> None:
         self.__track_write(key)
@@ -62,26 +63,26 @@ class TrackingDict(UserDict, Generic[_KT, _VT]):
         self.__track_write(key)
         super().__delitem__(key)
 
-    def __track_write(self, key: Union[_KT, Set[_KT]]) -> None:
+    def __track_write(self, key: Union[_KT, set[_KT]]) -> None:
         if isinstance(key, set):
             self._write_access_keys |= key
         else:
             self._write_access_keys.add(key)
 
-    def pop_accessed_keys(self) -> Set[_KT]:
+    def pop_accessed_keys(self) -> set[_KT]:
         """Returns all keys that were write-accessed since the last time this method was called."""
         out = self._write_access_keys
         self._write_access_keys = set()
         return out
 
-    def pop_accessed_write_items(self) -> List[Tuple[_KT, _VT]]:
+    def pop_accessed_write_items(self) -> list[tuple[_KT, _VT]]:
         """
         Returns all keys & corresponding values as set of tuples that were write-accessed since
         the last time this method was called. If a key was deleted, the value will be
         :attr:`DELETED`.
         """
         keys = self.pop_accessed_keys()
-        return [(key, self[key] if key in self else self.DELETED) for key in keys]
+        return [(key, self.get(key, self.DELETED)) for key in keys]
 
     def mark_as_accessed(self, key: _KT) -> None:
         """Use this method have the key returned again in the next call to
@@ -99,7 +100,9 @@ class TrackingDict(UserDict, Generic[_KT, _VT]):
     # Mypy seems a bit inconsistent about what it wants as types for `default` and return value
     # so we just ignore a bit
     def pop(  # type: ignore[override]
-        self, key: _KT, default: _VT = DEFAULT_NONE  # type: ignore[assignment]
+        self,
+        key: _KT,
+        default: _VT = DEFAULT_NONE,  # type: ignore[assignment]
     ) -> _VT:
         if key in self:
             self.__track_write(key)

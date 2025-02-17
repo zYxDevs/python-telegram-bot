@@ -2,7 +2,7 @@
 # pylint: disable=too-many-arguments
 #
 # A library that provides a Python interface to the Telegram Bot API
-# Copyright (C) 2015-2023
+# Copyright (C) 2015-2025
 # Leandro Toledo de Souza <devs@python-telegram-bot.org>
 #
 # This program is free software: you can redistribute it and/or modify
@@ -19,15 +19,17 @@
 # along with this program.  If not, see [http://www.gnu.org/licenses/].
 """This module contains an object that represents a Telegram InlineQuery."""
 
-from typing import TYPE_CHECKING, Callable, Final, Optional, Sequence, Union
+from collections.abc import Sequence
+from typing import TYPE_CHECKING, Callable, Final, Optional, Union
 
 from telegram import constants
 from telegram._files.location import Location
 from telegram._inline.inlinequeryresultsbutton import InlineQueryResultsButton
 from telegram._telegramobject import TelegramObject
 from telegram._user import User
+from telegram._utils.argumentparsing import de_json_optional
 from telegram._utils.defaultvalue import DEFAULT_NONE
-from telegram._utils.types import JSONDict, ODVInput
+from telegram._utils.types import JSONDict, ODVInput, TimePeriod
 
 if TYPE_CHECKING:
     from telegram import Bot, InlineQueryResult
@@ -96,7 +98,7 @@ class InlineQuery(TelegramObject):
 
     """
 
-    __slots__ = ("location", "chat_type", "id", "offset", "from_user", "query")
+    __slots__ = ("chat_type", "from_user", "id", "location", "offset", "query")
 
     def __init__(
         self,
@@ -125,15 +127,12 @@ class InlineQuery(TelegramObject):
         self._freeze()
 
     @classmethod
-    def de_json(cls, data: Optional[JSONDict], bot: "Bot") -> Optional["InlineQuery"]:
+    def de_json(cls, data: JSONDict, bot: Optional["Bot"] = None) -> "InlineQuery":
         """See :meth:`telegram.TelegramObject.de_json`."""
         data = cls._parse_data(data)
 
-        if not data:
-            return None
-
-        data["from_user"] = User.de_json(data.pop("from", None), bot)
-        data["location"] = Location.de_json(data.get("location"), bot)
+        data["from_user"] = de_json_optional(data.pop("from", None), User, bot)
+        data["location"] = de_json_optional(data.get("location"), Location, bot)
 
         return super().de_json(data=data, bot=bot)
 
@@ -142,7 +141,7 @@ class InlineQuery(TelegramObject):
         results: Union[
             Sequence["InlineQueryResult"], Callable[[int], Optional[Sequence["InlineQueryResult"]]]
         ],
-        cache_time: Optional[int] = None,
+        cache_time: Optional[TimePeriod] = None,
         is_personal: Optional[bool] = None,
         next_offset: Optional[str] = None,
         button: Optional[InlineQueryResultsButton] = None,

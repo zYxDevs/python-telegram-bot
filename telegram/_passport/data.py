@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 #
 # A library that provides a Python interface to the Telegram Bot API
-# Copyright (C) 2015-2023
+# Copyright (C) 2015-2025
 # Leandro Toledo de Souza <devs@python-telegram-bot.org>
 #
 # This program is free software: you can redistribute it and/or modify
@@ -61,16 +61,16 @@ class PersonalDetails(TelegramObject):
     """
 
     __slots__ = (
-        "middle_name",
-        "first_name_native",
-        "last_name_native",
-        "residence_country_code",
-        "first_name",
-        "last_name",
-        "country_code",
-        "gender",
-        "middle_name_native",
         "birth_date",
+        "country_code",
+        "first_name",
+        "first_name_native",
+        "gender",
+        "last_name",
+        "last_name_native",
+        "middle_name",
+        "middle_name_native",
+        "residence_country_code",
     )
 
     def __init__(
@@ -126,12 +126,12 @@ class ResidentialAddress(TelegramObject):
     """
 
     __slots__ = (
-        "post_code",
         "city",
         "country_code",
-        "street_line2",
-        "street_line1",
+        "post_code",
         "state",
+        "street_line1",
+        "street_line2",
     )
 
     def __init__(

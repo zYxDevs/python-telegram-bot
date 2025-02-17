@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 #
 # A library that provides a Python interface to the Telegram Bot API
-# Copyright (C) 2015-2023
+# Copyright (C) 2015-2025
 # Leandro Toledo de Souza <devs@python-telegram-bot.org>
 #
 # This program is free software: you can redistribute it and/or modify
@@ -30,7 +30,8 @@ class ForceReply(TelegramObject):
     Upon receiving a message with this object, Telegram clients will display a reply interface to
     the user (act as if the user has selected the bot's message and tapped 'Reply'). This can be
     extremely useful if you want to create user-friendly step-by-step interfaces without having
-    to sacrifice privacy mode.
+    to sacrifice `privacy mode <https://core.telegram.org/bots/features#privacy-mode>`_. Not
+    supported in channels and for messages sent on behalf of a Telegram Business account.
 
     Objects of this class are comparable in terms of equality. Two objects of this class are
     considered equal, if their :attr:`selective` is equal.
@@ -45,8 +46,8 @@ class ForceReply(TelegramObject):
 
             1) Users that are @mentioned in the :attr:`~telegram.Message.text` of the
                :class:`telegram.Message` object.
-            2) If the bot's message is a reply (has ``reply_to_message_id``), sender of the
-               original message.
+            2) If the bot's message is a reply to a message in the same chat and forum topic,
+               sender of the original message.
 
         input_field_placeholder (:obj:`str`, optional): The placeholder to be shown in the input
             field when the reply is active;
@@ -63,8 +64,8 @@ class ForceReply(TelegramObject):
 
             1) Users that are @mentioned in the :attr:`~telegram.Message.text` of the
                :class:`telegram.Message` object.
-            2) If the bot's message is a reply (has ``reply_to_message_id``), sender of the
-               original message.
+            2) If the bot's message is a reply to a message in the same chat and forum topic,
+                sender of the original message.
         input_field_placeholder (:obj:`str`): Optional. The placeholder to be shown in the input
             field when the reply is active;
             :tg-const:`telegram.ForceReply.MIN_INPUT_FIELD_PLACEHOLDER`-
@@ -75,7 +76,7 @@ class ForceReply(TelegramObject):
 
     """
 
-    __slots__ = ("selective", "force_reply", "input_field_placeholder")
+    __slots__ = ("force_reply", "input_field_placeholder", "selective")
 
     def __init__(
         self,

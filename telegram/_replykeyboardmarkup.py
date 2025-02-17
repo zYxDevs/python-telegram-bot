@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 #
 # A library that provides a Python interface to the Telegram Bot API
-# Copyright (C) 2015-2023
+# Copyright (C) 2015-2025
 # Leandro Toledo de Souza <devs@python-telegram-bot.org>
 #
 # This program is free software: you can redistribute it and/or modify
@@ -18,7 +18,8 @@
 # along with this program.  If not, see [http://www.gnu.org/licenses/].
 """This module contains an object that represents a Telegram ReplyKeyboardMarkup."""
 
-from typing import Final, Optional, Sequence, Tuple, Union
+from collections.abc import Sequence
+from typing import Final, Optional, Union
 
 from telegram import constants
 from telegram._keyboardbutton import KeyboardButton
@@ -28,7 +29,8 @@ from telegram._utils.types import JSONDict
 
 
 class ReplyKeyboardMarkup(TelegramObject):
-    """This object represents a custom keyboard with reply options.
+    """This object represents a custom keyboard with reply options. Not supported in channels and
+    for messages sent on behalf of a Telegram Business account.
 
     Objects of this class are comparable in terms of equality. Two objects of this class are
     considered equal, if their size of :attr:`keyboard` and all the buttons are equal.
@@ -40,7 +42,7 @@ class ReplyKeyboardMarkup(TelegramObject):
         A reply keyboard with reply options.
 
     .. seealso::
-        An another kind of keyboard would be the :class:`telegram.InlineKeyboardMarkup`.
+        Another kind of keyboard would be the :class:`telegram.InlineKeyboardMarkup`.
 
     Examples:
         * Example usage: A user requests to change the bot's language, bot replies to the request
@@ -65,8 +67,8 @@ class ReplyKeyboardMarkup(TelegramObject):
 
             1) Users that are @mentioned in the :attr:`~telegram.Message.text` of the
                :class:`telegram.Message` object.
-            2) If the bot's message is a reply (has ``reply_to_message_id``), sender of the
-               original message.
+            2) If the bot's message is a reply to a message in the same chat and forum topic,
+                sender of the original message.
 
             Defaults to :obj:`False`.
 
@@ -84,7 +86,7 @@ class ReplyKeyboardMarkup(TelegramObject):
             .. versionadded:: 20.0
 
     Attributes:
-        keyboard (Tuple[Tuple[:class:`telegram.KeyboardButton`]]): Array of button rows,
+        keyboard (tuple[tuple[:class:`telegram.KeyboardButton`]]): Array of button rows,
             each represented by an Array of :class:`telegram.KeyboardButton` objects.
         resize_keyboard (:obj:`bool`): Optional. Requests clients to resize the keyboard vertically
             for optimal fit (e.g., make the keyboard smaller if there are just two rows of
@@ -99,8 +101,8 @@ class ReplyKeyboardMarkup(TelegramObject):
 
             1) Users that are @mentioned in the :attr:`~telegram.Message.text` of the
                :class:`telegram.Message` object.
-            2) If the bot's message is a reply (has ``reply_to_message_id``), sender of the
-               original message.
+            2) If the bot's message is a reply to a message in the same chat and forum topic,
+                sender of the original message.
 
             Defaults to :obj:`False`.
 
@@ -120,12 +122,12 @@ class ReplyKeyboardMarkup(TelegramObject):
     """
 
     __slots__ = (
-        "selective",
-        "keyboard",
-        "resize_keyboard",
-        "one_time_keyboard",
         "input_field_placeholder",
         "is_persistent",
+        "keyboard",
+        "one_time_keyboard",
+        "resize_keyboard",
+        "selective",
     )
 
     def __init__(
@@ -147,7 +149,7 @@ class ReplyKeyboardMarkup(TelegramObject):
             )
 
         # Required
-        self.keyboard: Tuple[Tuple[KeyboardButton, ...], ...] = tuple(
+        self.keyboard: tuple[tuple[KeyboardButton, ...], ...] = tuple(
             tuple(KeyboardButton(button) if isinstance(button, str) else button for button in row)
             for row in keyboard
         )
@@ -196,8 +198,8 @@ class ReplyKeyboardMarkup(TelegramObject):
                 to specific users only. Targets:
 
                 1) Users that are @mentioned in the text of the Message object.
-                2) If the bot's message is a reply (has ``reply_to_message_id``), sender of the
-                   original message.
+                2) If the bot's message is a reply to a message in the same chat and forum topic,
+                    sender of the original message.
 
                 Defaults to :obj:`False`.
 
@@ -257,8 +259,8 @@ class ReplyKeyboardMarkup(TelegramObject):
                 to specific users only. Targets:
 
                 1) Users that are @mentioned in the text of the Message object.
-                2) If the bot's message is a reply (has ``reply_to_message_id``), sender of the
-                   original message.
+                2) If the bot's message is a reply to a message in the same chat and forum topic,
+                    sender of the original message.
 
                 Defaults to :obj:`False`.
 
@@ -319,8 +321,8 @@ class ReplyKeyboardMarkup(TelegramObject):
                 to specific users only. Targets:
 
                 1) Users that are @mentioned in the text of the Message object.
-                2) If the bot's message is a reply (has ``reply_to_message_id``), sender of the
-                   original message.
+                2) If the bot's message is a reply to a message in the same chat and forum topic,
+                    sender of the original message.
 
                 Defaults to :obj:`False`.
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 #
 # A library that provides a Python interface to the Telegram Bot API
-# Copyright (C) 2015-2023
+# Copyright (C) 2015-2025
 # Leandro Toledo de Souza <devs@python-telegram-bot.org>
 #
 # This program is free software: you can redistribute it and/or modify
@@ -42,7 +42,9 @@ class InputLocationMessageContent(InputMessageContent):
         live_period (:obj:`int`, optional): Period in seconds for which the location will be
             updated, should be between
             :tg-const:`telegram.InputLocationMessageContent.MIN_LIVE_PERIOD` and
-            :tg-const:`telegram.InputLocationMessageContent.MAX_LIVE_PERIOD`.
+            :tg-const:`telegram.InputLocationMessageContent.MAX_LIVE_PERIOD` or
+            :tg-const:`telegram.constants.LocationLimit.LIVE_PERIOD_FOREVER` for live
+            locations that can be edited indefinitely.
         heading (:obj:`int`, optional): For live locations, a direction in which the user is
             moving, in degrees. Must be between
             :tg-const:`telegram.InputLocationMessageContent.MIN_HEADING` and
@@ -75,8 +77,13 @@ class InputLocationMessageContent(InputMessageContent):
 
     """
 
-    __slots__ = ('longitude', 'horizontal_accuracy', 'proximity_alert_radius', 'live_period',
-                 'latitude', 'heading')
+    __slots__ = (
+        "heading",
+        "horizontal_accuracy",
+        "latitude",
+        "live_period",
+        "longitude",
+        "proximity_alert_radius")
     # fmt: on
 
     def __init__(

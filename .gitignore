@@ -67,6 +67,7 @@ docs/_build/
 # PyBuilder
 target/
 .idea/
+.run/
 
 # Sublime Text 2
 *.sublime*
@@ -92,3 +93,6 @@ telegram.jpg
 
 # virtual env
 venv*
+
+# environment manager:
+.mise.toml

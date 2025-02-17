@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 #
 # A library that provides a Python interface to the Telegram Bot API
-# Copyright (C) 2015-2023
+# Copyright (C) 2015-2025
 # Leandro Toledo de Souza <devs@python-telegram-bot.org>
 #
 # This program is free software: you can redistribute it and/or modify
@@ -20,7 +20,7 @@
 import pickle
 from copy import deepcopy
 from pathlib import Path
-from typing import Any, Callable, Dict, Optional, Set, Tuple, Type, TypeVar, Union, cast, overload
+from typing import Any, Callable, Optional, TypeVar, Union, cast, overload
 
 from telegram import Bot, TelegramObject
 from telegram._utils.types import FilePathInput
@@ -35,7 +35,7 @@ _REPLACED_UNKNOWN_BOT = "an unknown bot replaced by PTB's PicklePersistence"
 TelegramObj = TypeVar("TelegramObj", bound=TelegramObject)
 
 
-def _all_subclasses(cls: Type[TelegramObj]) -> Set[Type[TelegramObj]]:
+def _all_subclasses(cls: type[TelegramObj]) -> set[type[TelegramObj]]:
     """Gets all subclasses of the specified object, recursively. from
     https://stackoverflow.com/a/3862957/9706202
     """
@@ -43,7 +43,7 @@ def _all_subclasses(cls: Type[TelegramObj]) -> Set[Type[TelegramObj]]:
     return set(subclasses).union([s for c in subclasses for s in _all_subclasses(c)])
 
 
-def _reconstruct_to(cls: Type[TelegramObj], kwargs: dict) -> TelegramObj:
+def _reconstruct_to(cls: type[TelegramObj], kwargs: dict) -> TelegramObj:
     """
     This method is used for unpickling. The data, which is in the form a dictionary, is
     converted back into a class. Works mostly the same as :meth:`TelegramObject.__setstate__`.
@@ -55,7 +55,7 @@ def _reconstruct_to(cls: Type[TelegramObj], kwargs: dict) -> TelegramObj:
     return obj
 
 
-def _custom_reduction(cls: TelegramObj) -> Tuple[Callable, Tuple[Type[TelegramObj], dict]]:
+def _custom_reduction(cls: TelegramObj) -> tuple[Callable, tuple[type[TelegramObj], dict]]:
     """
     This method is used for pickling. The bot attribute is preserved so _BotPickler().persistent_id
     works as intended.
@@ -74,9 +74,9 @@ class _BotPickler(pickle.Pickler):
         self._bot = bot
         super().__init__(*args, **kwargs)
 
-    def reducer_override(  # skipcq: PYL-R0201
+    def reducer_override(
         self, obj: TelegramObj
-    ) -> Tuple[Callable, Tuple[Type[TelegramObj], dict]]:
+    ) -> tuple[Callable, tuple[type[TelegramObj], dict]]:
         """
         This method is used for pickling. The bot attribute is preserved so
         _BotPickler().persistent_id works as intended.
@@ -186,27 +186,26 @@ class PicklePersistence(BasePersistence[UD, CD, BD]):
     """
 
     __slots__ = (
-        "filepath",
-        "single_file",
-        "on_flush",
-        "user_data",
-        "chat_data",
         "bot_data",
         "callback_data",
-        "conversations",
+        "chat_data",
         "context_types",
+        "conversations",
+        "filepath",
+        "on_flush",
+        "single_file",
+        "user_data",
     )
 
     @overload
     def __init__(
-        self: "PicklePersistence[Dict[Any, Any], Dict[Any, Any], Dict[Any, Any]]",
+        self: "PicklePersistence[dict[Any, Any], dict[Any, Any], dict[Any, Any]]",
         filepath: FilePathInput,
         store_data: Optional[PersistenceInput] = None,
         single_file: bool = True,
         on_flush: bool = False,
         update_interval: float = 60,
-    ):
-        ...
+    ): ...
 
     @overload
     def __init__(
@@ -217,8 +216,7 @@ class PicklePersistence(BasePersistence[UD, CD, BD]):
         on_flush: bool = False,
         update_interval: float = 60,
         context_types: Optional[ContextTypes[Any, UD, CD, BD]] = None,
-    ):
-        ...
+    ): ...
 
     def __init__(
         self,
@@ -233,11 +231,11 @@ class PicklePersistence(BasePersistence[UD, CD, BD]):
         self.filepath: Path = Path(filepath)
         self.single_file: Optional[bool] = single_file
         self.on_flush: Optional[bool] = on_flush
-        self.user_data: Optional[Dict[int, UD]] = None
-        self.chat_data: Optional[Dict[int, CD]] = None
+        self.user_data: Optional[dict[int, UD]] = None
+        self.chat_data: Optional[dict[int, CD]] = None
         self.bot_data: Optional[BD] = None
         self.callback_data: Optional[CDCData] = None
-        self.conversations: Optional[Dict[str, Dict[Tuple[Union[int, str], ...], object]]] = None
+        self.conversations: Optional[dict[str, dict[tuple[Union[int, str], ...], object]]] = None
         self.context_types: ContextTypes[Any, UD, CD, BD] = cast(
             ContextTypes[Any, UD, CD, BD], context_types or ContextTypes()
         )
@@ -292,11 +290,11 @@ class PicklePersistence(BasePersistence[UD, CD, BD]):
         with filepath.open("wb") as file:
             _BotPickler(self.bot, file, protocol=pickle.HIGHEST_PROTOCOL).dump(data)
 
-    async def get_user_data(self) -> Dict[int, UD]:
+    async def get_user_data(self) -> dict[int, UD]:
         """Returns the user_data from the pickle file if it exists or an empty :obj:`dict`.
 
         Returns:
-            Dict[:obj:`int`, :obj:`dict`]: The restored user data.
+            dict[:obj:`int`, :obj:`dict`]: The restored user data.
         """
         if self.user_data:
             pass
@@ -309,11 +307,11 @@ class PicklePersistence(BasePersistence[UD, CD, BD]):
             self._load_singlefile()
         return deepcopy(self.user_data)  # type: ignore[arg-type]
 
-    async def get_chat_data(self) -> Dict[int, CD]:
+    async def get_chat_data(self) -> dict[int, CD]:
         """Returns the chat_data from the pickle file if it exists or an empty :obj:`dict`.
 
         Returns:
-            Dict[:obj:`int`, :obj:`dict`]: The restored chat data.
+            dict[:obj:`int`, :obj:`dict`]: The restored chat data.
         """
         if self.chat_data:
             pass
@@ -350,8 +348,8 @@ class PicklePersistence(BasePersistence[UD, CD, BD]):
         .. versionadded:: 13.6
 
         Returns:
-            Tuple[List[Tuple[:obj:`str`, :obj:`float`, Dict[:obj:`str`, :class:`object`]]],
-            Dict[:obj:`str`, :obj:`str`]] | :obj:`None`: The restored metadata or :obj:`None`,
+            tuple[list[tuple[:obj:`str`, :obj:`float`, dict[:obj:`str`, :class:`object`]]],
+            dict[:obj:`str`, :obj:`str`]] | :obj:`None`: The restored metadata or :obj:`None`,
             if no data was stored.
         """
         if self.callback_data:
@@ -468,8 +466,8 @@ class PicklePersistence(BasePersistence[UD, CD, BD]):
         .. versionadded:: 13.6
 
         Args:
-            data (Tuple[List[Tuple[:obj:`str`, :obj:`float`, \
-                Dict[:obj:`str`, :class:`object`]]], Dict[:obj:`str`, :obj:`str`]]):
+            data (tuple[list[tuple[:obj:`str`, :obj:`float`, \
+                dict[:obj:`str`, :class:`object`]]], dict[:obj:`str`, :obj:`str`]]):
                 The relevant data to restore :class:`telegram.ext.CallbackDataCache`.
         """
         if self.callback_data == data:
@@ -492,7 +490,7 @@ class PicklePersistence(BasePersistence[UD, CD, BD]):
         """
         if self.chat_data is None:
             return
-        self.chat_data.pop(chat_id, None)  # type: ignore[arg-type]
+        self.chat_data.pop(chat_id, None)
 
         if not self.on_flush:
             if not self.single_file:
@@ -511,7 +509,7 @@ class PicklePersistence(BasePersistence[UD, CD, BD]):
         """
         if self.user_data is None:
             return
-        self.user_data.pop(user_id, None)  # type: ignore[arg-type]
+        self.user_data.pop(user_id, None)
 
         if not self.on_flush:
             if not self.single_file:

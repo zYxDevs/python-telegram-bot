@@ -1,7 +1,7 @@
 # !/usr/bin/env python
 #
 # A library that provides a Python interface to the Telegram Bot API
-# Copyright (C) 2015-2023
+# Copyright (C) 2015-2025
 # Leandro Toledo de Souza <devs@python-telegram-bot.org>
 #
 # This program is free software: you can redistribute it and/or modify
@@ -17,6 +17,7 @@
 # You should have received a copy of the GNU Lesser Public License
 # along with this program.  If not, see [http://www.gnu.org/licenses/].
 # pylint: disable=missing-module-docstring
+# ruff: noqa: T201, D100, S603, S607
 import subprocess
 import sys
 from typing import Optional
@@ -27,7 +28,7 @@ from .constants import BOT_API_VERSION
 
 def _git_revision() -> Optional[str]:
     try:
-        output = subprocess.check_output(  # skipcq: BAN-B607
+        output = subprocess.check_output(
             ["git", "describe", "--long", "--tags"], stderr=subprocess.STDOUT
         )
     except (subprocess.SubprocessError, OSError):
@@ -35,7 +36,7 @@ def _git_revision() -> Optional[str]:
     return output.decode().strip()
 
 
-def print_ver_info() -> None:  # skipcq: PY-D0003
+def print_ver_info() -> None:
     """Prints version information for python-telegram-bot, the Bot API and Python."""
     git_revision = _git_revision()
     print(f"python-telegram-bot {telegram_ver}" + (f" ({git_revision})" if git_revision else ""))
@@ -44,7 +45,7 @@ def print_ver_info() -> None:  # skipcq: PY-D0003
     print(f"Python {sys_version}")
 
 
-def main() -> None:  # skipcq: PY-D0003
+def main() -> None:
     """Prints version information for python-telegram-bot, the Bot API and Python."""
     print_ver_info()
 

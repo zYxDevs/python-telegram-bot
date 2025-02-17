@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 #
 # A library that provides a Python interface to the Telegram Bot API
-# Copyright (C) 2015-2023
+# Copyright (C) 2015-2025
 # Leandro Toledo de Souza <devs@python-telegram-bot.org>
 #
 # This program is free software: you can redistribute it and/or modify
@@ -18,7 +18,7 @@
 # along with this program.  If not, see [http://www.gnu.org/licenses/].
 """This module contains an object that represents a Encrypted PassportFile."""
 
-from typing import TYPE_CHECKING, List, Optional, Tuple
+from typing import TYPE_CHECKING, Optional
 
 from telegram._telegramobject import TelegramObject
 from telegram._utils.defaultvalue import DEFAULT_NONE
@@ -47,7 +47,7 @@ class PassportFile(TelegramObject):
         file_size (:obj:`int`): File size in bytes.
         file_date (:obj:`int`): Unix time when the file was uploaded.
 
-            .. deprecated:: NEXT.VERSION
+            .. deprecated:: 20.6
                 This argument will only accept a datetime instead of an integer in future
                 major versions.
 
@@ -61,10 +61,10 @@ class PassportFile(TelegramObject):
     """
 
     __slots__ = (
+        "_credentials",
         "_file_date",
         "file_id",
         "file_size",
-        "_credentials",
         "file_unique_id",
     )
 
@@ -103,27 +103,36 @@ class PassportFile(TelegramObject):
     def file_date(self) -> int:
         """:obj:`int`: Unix time when the file was uploaded.
 
-        .. deprecated:: NEXT.VERSION
+        .. deprecated:: 20.6
             This attribute will return a datetime instead of a integer in future major versions.
         """
         warn(
-            "The attribute `file_date` will return a datetime instead of an integer in future"
-            " major versions.",
-            PTBDeprecationWarning,
+            PTBDeprecationWarning(
+                "20.6",
+                "The attribute `file_date` will return a datetime instead of an integer in future"
+                " major versions.",
+            ),
             stacklevel=2,
         )
         return self._file_date
 
     @classmethod
     def de_json_decrypted(
-        cls, data: Optional[JSONDict], bot: "Bot", credentials: "FileCredentials"
-    ) -> Optional["PassportFile"]:
+        cls, data: JSONDict, bot: Optional["Bot"], credentials: "FileCredentials"
+    ) -> "PassportFile":
         """Variant of :meth:`telegram.TelegramObject.de_json` that also takes into account
         passport credentials.
 
         Args:
-            data (Dict[:obj:`str`, ...]): The JSON data.
-            bot (:class:`telegram.Bot`): The bot associated with this object.
+            data (dict[:obj:`str`, ...]): The JSON data.
+            bot (:class:`telegram.Bot` | :obj:`None`): The bot associated with these object.
+                May be :obj:`None`, in which case shortcut methods will not be available.
+
+                .. versionchanged:: 21.4
+                   :paramref:`bot` is now optional and defaults to :obj:`None`
+
+                .. deprecated:: 21.4
+                   This argument will be converted to an optional argument in future versions.
             credentials (:class:`telegram.FileCredentials`): The credentials
 
         Returns:
@@ -132,17 +141,17 @@ class PassportFile(TelegramObject):
         """
         data = cls._parse_data(data)
 
-        if not data:
-            return None
-
         data["credentials"] = credentials
 
         return super().de_json(data=data, bot=bot)
 
     @classmethod
     def de_list_decrypted(
-        cls, data: Optional[List[JSONDict]], bot: "Bot", credentials: List["FileCredentials"]
-    ) -> Tuple[Optional["PassportFile"], ...]:
+        cls,
+        data: list[JSONDict],
+        bot: Optional["Bot"],
+        credentials: list["FileCredentials"],
+    ) -> tuple["PassportFile", ...]:
         """Variant of :meth:`telegram.TelegramObject.de_list` that also takes into account
         passport credentials.
 
@@ -152,24 +161,27 @@ class PassportFile(TelegramObject):
            * Filters out any :obj:`None` values
 
         Args:
-            data (List[Dict[:obj:`str`, ...]]): The JSON data.
-            bot (:class:`telegram.Bot`): The bot associated with these objects.
+            data (list[dict[:obj:`str`, ...]]): The JSON data.
+            bot (:class:`telegram.Bot` | :obj:`None`): The bot associated with these object.
+                May be :obj:`None`, in which case shortcut methods will not be available.
+
+                .. versionchanged:: 21.4
+                   :paramref:`bot` is now optional and defaults to :obj:`None`
+
+                .. deprecated:: 21.4
+                   This argument will be converted to an optional argument in future versions.
             credentials (:class:`telegram.FileCredentials`): The credentials
 
         Returns:
-            Tuple[:class:`telegram.PassportFile`]:
+            tuple[:class:`telegram.PassportFile`]:
 
         """
-        if not data:
-            return ()
-
         return tuple(
             obj
             for obj in (
                 cls.de_json_decrypted(passport_file, bot, credentials[i])
                 for i, passport_file in enumerate(data)
             )
-            if obj is not None
         )
 
     async def get_file(
@@ -184,7 +196,7 @@ class PassportFile(TelegramObject):
         """
         Wrapper over :meth:`telegram.Bot.get_file`. Will automatically assign the correct
         credentials to the returned :class:`telegram.File` if originating from
-        :obj:`telegram.PassportData.decrypted_data`.
+        :attr:`telegram.PassportData.decrypted_data`.
 
         For the documentation of the arguments, please see :meth:`telegram.Bot.get_file`.
 
@@ -203,5 +215,6 @@ class PassportFile(TelegramObject):
             pool_timeout=pool_timeout,
             api_kwargs=api_kwargs,
         )
-        file.set_credentials(self._credentials)
+        if self._credentials:
+            file.set_credentials(self._credentials)
         return file

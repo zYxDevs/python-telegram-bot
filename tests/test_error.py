@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 #
 # A library that provides a Python interface to the Telegram Bot API
-# Copyright (C) 2015-2023
+# Copyright (C) 2015-2025
 # Leandro Toledo de Souza <devs@python-telegram-bot.org>
 #
 # This program is free software: you can redistribute it and/or modify
@@ -25,6 +25,7 @@ from telegram.error import (
     BadRequest,
     ChatMigrated,
     Conflict,
+    EndPointNotFound,
     Forbidden,
     InvalidToken,
     NetworkError,
@@ -113,6 +114,7 @@ class TestErrors:
             (Conflict("test message"), ["message"]),
             (PassportDecryptionError("test message"), ["message"]),
             (InvalidCallbackData("test data"), ["callback_data"]),
+            (EndPointNotFound("endPoint"), ["message"]),
         ],
     )
     def test_errors_pickling(self, exception, attributes):
@@ -138,6 +140,7 @@ class TestErrors:
             (Conflict("test message")),
             (PassportDecryptionError("test message")),
             (InvalidCallbackData("test data")),
+            (EndPointNotFound("test message")),
         ],
     )
     def test_slot_behaviour(self, inst):
@@ -170,6 +173,7 @@ class TestErrors:
                     Conflict,
                     PassportDecryptionError,
                     InvalidCallbackData,
+                    EndPointNotFound,
                 },
                 NetworkError: {BadRequest, TimedOut},
             }

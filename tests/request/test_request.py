@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 #
 # A library that provides a Python interface to the Telegram Bot API
-# Copyright (C) 2015-2023
+# Copyright (C) 2015-2025
 # Leandro Toledo de Souza <devs@python-telegram-bot.org>
 #
 # This program is free software: you can redistribute it and/or modify
@@ -22,14 +22,18 @@ import asyncio
 import json
 import logging
 from collections import defaultdict
+from collections.abc import Coroutine
 from dataclasses import dataclass
 from http import HTTPStatus
-from typing import Any, Callable, Coroutine, Tuple
+from typing import Any, Callable
 
 import httpx
 import pytest
+from httpx import AsyncHTTPTransport
 
+from telegram import InputFile
 from telegram._utils.defaultvalue import DEFAULT_NONE
+from telegram._utils.strings import TextEncoding
 from telegram.error import (
     BadRequest,
     ChatMigrated,
@@ -41,8 +45,13 @@ from telegram.error import (
     TelegramError,
     TimedOut,
 )
+from telegram.request import BaseRequest, RequestData
 from telegram.request._httpxrequest import HTTPXRequest
+from telegram.request._requestparameter import RequestParameter
+from telegram.warnings import PTBDeprecationWarning
 from tests.auxil.envvars import TEST_WITH_OPT_DEPS
+from tests.auxil.files import data_file
+from tests.auxil.networking import NonchalantHttpxRequest
 from tests.auxil.slots import mro_slots
 
 # We only need mixed_rqs fixture, but it uses the others, so pytest needs us to import them as well
@@ -59,16 +68,16 @@ from .test_requestdata import (  # noqa: F401
 
 def mocker_factory(
     response: bytes, return_code: int = HTTPStatus.OK
-) -> Callable[[Tuple[Any]], Coroutine[Any, Any, Tuple[int, bytes]]]:
+) -> Callable[[tuple[Any]], Coroutine[Any, Any, tuple[int, bytes]]]:
     async def make_assertion(*args, **kwargs):
         return return_code, response
 
     return make_assertion
 
 
-@pytest.fixture()
+@pytest.fixture
 async def httpx_request():
-    async with HTTPXRequest() as rq:
+    async with NonchalantHttpxRequest() as rq:
         yield rq
 
 
@@ -76,9 +85,9 @@ async def httpx_request():
     TEST_WITH_OPT_DEPS, reason="Only relevant if the optional dependency is not installed"
 )
 class TestNoSocksHTTP2WithoutRequest:
-    async def test_init(self, bot):
+    async def test_init(self, offline_bot):
         with pytest.raises(RuntimeError, match=r"python-telegram-bot\[socks\]"):
-            HTTPXRequest(proxy_url="socks5://foo")
+            HTTPXRequest(proxy="socks5://foo")
         with pytest.raises(RuntimeError, match=r"python-telegram-bot\[http2\]"):
             HTTPXRequest(http_version="2")
 
@@ -117,7 +126,7 @@ class TestRequestWithoutRequest:
 
         # Make sure that other exceptions are forwarded
         with pytest.raises(ImportError, match=r"Other Error Message"):
-            HTTPXRequest(proxy_url="socks5://foo")
+            HTTPXRequest(proxy="socks5://foo")
 
     def test_slot_behaviour(self):
         inst = HTTPXRequest()
@@ -126,6 +135,37 @@ class TestRequestWithoutRequest:
             assert getattr(inst, at, "err") != "err", f"got extra slot '{at}'"
         assert len(mro_slots(inst)) == len(set(mro_slots(inst))), "duplicate slot"
 
+    def test_httpx_kwargs(self, monkeypatch):
+        self.test_flag = {}
+
+        orig_init = httpx.AsyncClient.__init__
+
+        class Client(httpx.AsyncClient):
+            def __init__(*args, **kwargs):
+                orig_init(*args, **kwargs)
+                self.test_flag["args"] = args
+                self.test_flag["kwargs"] = kwargs
+
+        monkeypatch.setattr(httpx, "AsyncClient", Client)
+
+        HTTPXRequest(
+            connect_timeout=1,
+            connection_pool_size=42,
+            http_version="2",
+            httpx_kwargs={
+                "timeout": httpx.Timeout(7),
+                "limits": httpx.Limits(max_connections=7),
+                "http1": True,
+                "verify": False,
+            },
+        )
+        kwargs = self.test_flag["kwargs"]
+
+        assert kwargs["timeout"].connect == 7
+        assert kwargs["limits"].max_connections == 7
+        assert kwargs["http1"] is True
+        assert kwargs["verify"] is False
+
     async def test_context_manager(self, monkeypatch):
         async def initialize():
             self.test_flag = ["initialize"]
@@ -133,7 +173,7 @@ class TestRequestWithoutRequest:
         async def shutdown():
             self.test_flag.append("stop")
 
-        httpx_request = HTTPXRequest()
+        httpx_request = NonchalantHttpxRequest()
 
         monkeypatch.setattr(httpx_request, "initialize", initialize)
         monkeypatch.setattr(httpx_request, "shutdown", shutdown)
@@ -150,7 +190,7 @@ class TestRequestWithoutRequest:
         async def shutdown():
             self.test_flag = "stop"
 
-        httpx_request = HTTPXRequest()
+        httpx_request = NonchalantHttpxRequest()
 
         monkeypatch.setattr(httpx_request, "initialize", initialize)
         monkeypatch.setattr(httpx_request, "shutdown", shutdown)
@@ -180,8 +220,9 @@ class TestRequestWithoutRequest:
 
         monkeypatch.setattr(httpx_request, "do_request", mocker_factory(response=server_response))
 
-        with pytest.raises(TelegramError, match="Invalid server response"), caplog.at_level(
-            logging.ERROR
+        with (
+            pytest.raises(TelegramError, match="Invalid server response"),
+            caplog.at_level(logging.ERROR),
         ):
             await httpx_request.post(None, None, None)
 
@@ -242,7 +283,7 @@ class TestRequestWithoutRequest:
         else:
             match = "Unknown HTTPError"
 
-        server_response = json.dumps(response_data).encode("utf-8")
+        server_response = json.dumps(response_data).encode(TextEncoding.UTF_8)
 
         monkeypatch.setattr(
             httpx_request,
@@ -329,7 +370,7 @@ class TestRequestWithoutRequest:
 
         assert await httpx_request.retrieve(None, None) == server_response
 
-    async def test_timeout_propagation(self, monkeypatch, httpx_request):
+    async def test_timeout_propagation_to_do_request(self, monkeypatch, httpx_request):
         async def make_assertion(*args, **kwargs):
             self.test_flag = (
                 kwargs.get("read_timeout"),
@@ -341,13 +382,83 @@ class TestRequestWithoutRequest:
 
         monkeypatch.setattr(httpx_request, "do_request", make_assertion)
 
-        await httpx_request.post("url", "method")
+        await httpx_request.post("url", None)
         assert self.test_flag == (DEFAULT_NONE, DEFAULT_NONE, DEFAULT_NONE, DEFAULT_NONE)
 
         await httpx_request.post(
             "url", None, read_timeout=1, connect_timeout=2, write_timeout=3, pool_timeout=4
         )
         assert self.test_flag == (1, 2, 3, 4)
+
+    def test_read_timeout_not_implemented(self):
+        class SimpleRequest(BaseRequest):
+            async def do_request(self, *args, **kwargs):
+                raise httpx.ReadTimeout("read timeout")
+
+            async def initialize(self) -> None:
+                pass
+
+            async def shutdown(self) -> None:
+                pass
+
+        with pytest.raises(NotImplementedError):
+            SimpleRequest().read_timeout
+
+    @pytest.mark.parametrize("media", [True, False])
+    async def test_timeout_propagation_write_timeout(
+        self, monkeypatch, media, input_media_photo, recwarn  # noqa: F811
+    ):
+        class CustomRequest(BaseRequest):
+            async def initialize(self_) -> None:
+                pass
+
+            async def shutdown(self_) -> None:
+                pass
+
+            async def do_request(self_, *args, **kwargs) -> tuple[int, bytes]:
+                self.test_flag = (
+                    kwargs.get("read_timeout"),
+                    kwargs.get("connect_timeout"),
+                    kwargs.get("write_timeout"),
+                    kwargs.get("pool_timeout"),
+                )
+                return HTTPStatus.OK, b'{"ok": "True", "result": {}}'
+
+        custom_request = CustomRequest()
+        data = {"string": "string", "int": 1, "float": 1.0}
+        if media:
+            data["media"] = input_media_photo
+        request_data = RequestData(
+            parameters=[RequestParameter.from_input(key, value) for key, value in data.items()],
+        )
+
+        # First make sure that custom timeouts are always respected
+        await custom_request.post(
+            "url", request_data, read_timeout=1, connect_timeout=2, write_timeout=3, pool_timeout=4
+        )
+        assert self.test_flag == (1, 2, 3, 4)
+
+        # Now also ensure that the default timeout for media requests is 20 seconds
+        await custom_request.post("url", request_data)
+        assert self.test_flag == (
+            DEFAULT_NONE,
+            DEFAULT_NONE,
+            20 if media else DEFAULT_NONE,
+            DEFAULT_NONE,
+        )
+
+        print("warnings")
+        for entry in recwarn:
+            print(entry.message)
+        if media:
+            assert len(recwarn) == 1
+            assert "will default to `BaseRequest.DEFAULT_NONE` instead of 20" in str(
+                recwarn[0].message
+            )
+            assert recwarn[0].category is PTBDeprecationWarning
+            assert recwarn[0].filename == __file__
+        else:
+            assert len(recwarn) == 0
 
 
 @pytest.mark.skipif(not TEST_WITH_OPT_DEPS, reason="No need to run this twice")
@@ -358,39 +469,54 @@ class TestHTTPXRequestWithoutRequest:
     def _reset(self):
         self.test_flag = None
 
-    def test_init(self, monkeypatch):
+    # We parametrize this to make sure that the legacy `proxy_url` argument is still supported
+    @pytest.mark.parametrize("proxy_argument", ["proxy", "proxy_url"])
+    def test_init(self, monkeypatch, proxy_argument):
         @dataclass
         class Client:
             timeout: object
-            proxies: object
+            proxy: object
             limits: object
             http1: object
             http2: object
+            transport: object = None
 
         monkeypatch.setattr(httpx, "AsyncClient", Client)
 
         request = HTTPXRequest()
         assert request._client.timeout == httpx.Timeout(connect=5.0, read=5.0, write=5.0, pool=1.0)
-        assert request._client.proxies is None
+        assert request._client.proxy is None
         assert request._client.limits == httpx.Limits(
             max_connections=1, max_keepalive_connections=1
         )
         assert request._client.http1 is True
         assert not request._client.http2
 
-        request = HTTPXRequest(
-            connection_pool_size=42,
-            proxy_url="proxy_url",
-            connect_timeout=43,
-            read_timeout=44,
-            write_timeout=45,
-            pool_timeout=46,
-        )
-        assert request._client.proxies == "proxy_url"
+        kwargs = {
+            "connection_pool_size": 42,
+            proxy_argument: "proxy",
+            "connect_timeout": 43,
+            "read_timeout": 44,
+            "write_timeout": 45,
+            "pool_timeout": 46,
+        }
+        request = HTTPXRequest(**kwargs)
+        assert request._client.proxy == "proxy"
         assert request._client.limits == httpx.Limits(
             max_connections=42, max_keepalive_connections=42
         )
         assert request._client.timeout == httpx.Timeout(connect=43, read=44, write=45, pool=46)
+
+    def test_proxy_mutually_exclusive(self):
+        with pytest.raises(ValueError, match="mutually exclusive"):
+            HTTPXRequest(proxy="proxy", proxy_url="proxy_url")
+
+    def test_proxy_url_deprecation_warning(self, recwarn):
+        HTTPXRequest(proxy_url="http://127.0.0.1:3128")
+        assert len(recwarn) == 1
+        assert recwarn[0].category is PTBDeprecationWarning
+        assert "`proxy_url` is deprecated" in str(recwarn[0].message)
+        assert recwarn[0].filename == __file__, "incorrect stacklevel"
 
     async def test_multiple_inits_and_shutdowns(self, monkeypatch):
         self.test_flag = defaultdict(int)
@@ -422,27 +548,9 @@ class TestHTTPXRequestWithoutRequest:
         assert self.test_flag["init"] == 1
         assert self.test_flag["shutdown"] == 1
 
-    async def test_multiple_init_cycles(self):
-        # nothing really to assert - this should just not fail
-        httpx_request = HTTPXRequest()
-        async with httpx_request:
-            await httpx_request.do_request(url="https://python-telegram-bot.org", method="GET")
-        async with httpx_request:
-            await httpx_request.do_request(url="https://python-telegram-bot.org", method="GET")
-
     async def test_http_version_error(self):
         with pytest.raises(ValueError, match="`http_version` must be either"):
             HTTPXRequest(http_version="1.0")
-
-    async def test_http_1_response(self):
-        httpx_request = HTTPXRequest(http_version="1.1")
-        async with httpx_request:
-            resp = await httpx_request._client.request(
-                url="https://python-telegram-bot.org",
-                method="GET",
-                headers={"User-Agent": httpx_request.USER_AGENT},
-            )
-            assert resp.http_version == "HTTP/1.1"
 
     async def test_do_request_after_shutdown(self, httpx_request):
         await httpx_request.shutdown()
@@ -456,7 +564,7 @@ class TestHTTPXRequestWithoutRequest:
         async def aclose(*args):
             self.test_flag.append("stop")
 
-        httpx_request = HTTPXRequest()
+        httpx_request = NonchalantHttpxRequest()
 
         monkeypatch.setattr(httpx_request, "initialize", initialize)
         monkeypatch.setattr(httpx.AsyncClient, "aclose", aclose)
@@ -473,7 +581,7 @@ class TestHTTPXRequestWithoutRequest:
         async def aclose(*args):
             self.test_flag = "stop"
 
-        httpx_request = HTTPXRequest()
+        httpx_request = NonchalantHttpxRequest()
 
         monkeypatch.setattr(httpx_request, "initialize", initialize)
         monkeypatch.setattr(httpx.AsyncClient, "aclose", aclose)
@@ -515,9 +623,9 @@ class TestHTTPXRequestWithoutRequest:
             read_timeout=default_timeouts.read,
             write_timeout=default_timeouts.write,
             pool_timeout=default_timeouts.pool,
-        ) as httpx_request:
+        ) as httpx_request_ctx:
             monkeypatch.setattr(httpx.AsyncClient, "request", make_assertion)
-            await httpx_request.do_request(
+            await httpx_request_ctx.do_request(
                 method="GET",
                 url="URL",
                 connect_timeout=manual_timeouts.connect,
@@ -618,9 +726,113 @@ class TestHTTPXRequestWithoutRequest:
 
             assert exc_info.value.__cause__ is pool_timeout
 
+    @pytest.mark.parametrize("media", [True, False])
+    async def test_do_request_write_timeout(
+        self, monkeypatch, media, httpx_request, input_media_photo, recwarn  # noqa: F811
+    ):
+        async def request(_, **kwargs):
+            self.test_flag = kwargs.get("timeout")
+            return httpx.Response(HTTPStatus.OK, content=b'{"ok": "True", "result": {}}')
+
+        monkeypatch.setattr(httpx.AsyncClient, "request", request)
+
+        data = {"string": "string", "int": 1, "float": 1.0}
+        if media:
+            data["media"] = input_media_photo
+        request_data = RequestData(
+            parameters=[RequestParameter.from_input(key, value) for key, value in data.items()],
+        )
+
+        # First make sure that custom timeouts are always respected
+        await httpx_request.post(
+            "url", request_data, read_timeout=1, connect_timeout=2, write_timeout=3, pool_timeout=4
+        )
+        assert self.test_flag == httpx.Timeout(read=1, connect=2, write=3, pool=4)
+
+        # Now also ensure that the default timeout for media requests is 20 seconds
+        await httpx_request.post("url", request_data)
+        assert self.test_flag == httpx.Timeout(read=5, connect=5, write=20 if media else 5, pool=1)
+
+        # Just for double-checking, since warnings are issued for implementations of BaseRequest
+        # other than HTTPXRequest
+        assert len(recwarn) == 0
+
+    @pytest.mark.parametrize("init", [True, False])
+    async def test_setting_media_write_timeout(
+        self, monkeypatch, init, input_media_photo, recwarn  # noqa: F811
+    ):
+        httpx_request = HTTPXRequest(media_write_timeout=42) if init else HTTPXRequest()
+
+        async def request(_, **kwargs):
+            self.test_flag = kwargs["timeout"].write
+            return httpx.Response(HTTPStatus.OK, content=b'{"ok": "True", "result": {}}')
+
+        monkeypatch.setattr(httpx.AsyncClient, "request", request)
+
+        data = {"string": "string", "int": 1, "float": 1.0, "media": input_media_photo}
+        request_data = RequestData(
+            parameters=[RequestParameter.from_input(key, value) for key, value in data.items()],
+        )
+
+        # First make sure that custom timeouts are always respected
+        await httpx_request.post(
+            "url",
+            request_data,
+            write_timeout=43,
+        )
+        assert self.test_flag == 43
+
+        # Now also ensure that the init value is respected
+        await httpx_request.post("url", request_data)
+        assert self.test_flag == 42 if init else 20
+
+        # Just for double-checking, since warnings are issued for implementations of BaseRequest
+        # other than HTTPXRequest
+        assert len(recwarn) == 0
+
+    async def test_socket_opts(self, monkeypatch):
+        transport_kwargs = {}
+        transport_init = AsyncHTTPTransport.__init__
+
+        def init_transport(*args, **kwargs):
+            nonlocal transport_kwargs
+            transport_kwargs = kwargs.copy()
+            transport_init(*args, **kwargs)
+
+        monkeypatch.setattr(AsyncHTTPTransport, "__init__", init_transport)
+
+        HTTPXRequest()
+        assert "socket_options" not in transport_kwargs
+
+        transport_kwargs = {}
+        HTTPXRequest(socket_options=((1, 2, 3),))
+        assert transport_kwargs["socket_options"] == ((1, 2, 3),)
+
+    @pytest.mark.parametrize("read_timeout", [None, 1, 2, 3])
+    async def test_read_timeout_property(self, read_timeout):
+        assert HTTPXRequest(read_timeout=read_timeout).read_timeout == read_timeout
+
 
 @pytest.mark.skipif(not TEST_WITH_OPT_DEPS, reason="No need to run this twice")
 class TestHTTPXRequestWithRequest:
+    async def test_multiple_init_cycles(self):
+        # nothing really to assert - this should just not fail
+        httpx_request = HTTPXRequest()
+        async with httpx_request:
+            await httpx_request.do_request(url="https://python-telegram-bot.org", method="GET")
+        async with httpx_request:
+            await httpx_request.do_request(url="https://python-telegram-bot.org", method="GET")
+
+    async def test_http_1_response(self):
+        httpx_request = HTTPXRequest(http_version="1.1")
+        async with httpx_request:
+            resp = await httpx_request._client.request(
+                url="https://python-telegram-bot.org",
+                method="GET",
+                headers={"User-Agent": httpx_request.USER_AGENT},
+            )
+            assert resp.http_version == "HTTP/1.1"
+
     async def test_do_request_wait_for_pool(self, httpx_request):
         """The pool logic is buried rather deeply in httpxcore, so we make actual requests here
         instead of mocking"""
@@ -644,3 +856,15 @@ class TestHTTPXRequestWithRequest:
             task_2.exception()
         except (asyncio.CancelledError, asyncio.InvalidStateError):
             pass
+
+    async def test_input_file_postponed_read(self, bot, chat_id):
+        """Here we test that `read_file_handle=False` is correctly handled by HTTPXRequest.
+        Since manually building the RequestData object has no real benefit, we simply use the Bot
+        for that.
+        """
+        message = await bot.send_document(
+            document=InputFile(data_file("telegram.jpg").open("rb"), read_file_handle=False),
+            chat_id=chat_id,
+        )
+        assert message.document
+        assert message.document.file_name == "telegram.jpg"
