@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 #
 # A library that provides a Python interface to the Telegram Bot API
-# Copyright (C) 2015-2023
+# Copyright (C) 2015-2025
 # Leandro Toledo de Souza <devs@python-telegram-bot.org>
 #
 # This program is free software: you can redistribute it and/or modify
@@ -17,12 +17,14 @@
 # You should have received a copy of the GNU Lesser Public License
 # along with this program.  If not, see [http://www.gnu.org/licenses/].
 import asyncio
+import datetime as dtm
 import os
 from pathlib import Path
 
 import pytest
 
-from telegram import Animation, Bot, InputFile, MessageEntity, PhotoSize, Voice
+from telegram import Animation, Bot, InputFile, MessageEntity, PhotoSize, ReplyParameters, Voice
+from telegram.constants import ParseMode
 from telegram.error import BadRequest, TelegramError
 from telegram.helpers import escape_markdown
 from telegram.request import RequestData
@@ -31,25 +33,12 @@ from tests.auxil.bot_method_checks import (
     check_shortcut_call,
     check_shortcut_signature,
 )
+from tests.auxil.build_messages import make_message
 from tests.auxil.files import data_file
 from tests.auxil.slots import mro_slots
 
 
-@pytest.fixture()
-def animation_file():
-    with data_file("game.gif").open("rb") as f:
-        yield f
-
-
-@pytest.fixture(scope="module")
-async def animation(bot, chat_id):
-    with data_file("game.gif").open("rb") as f, data_file("thumb.jpg").open("rb") as thumb:
-        return (
-            await bot.send_animation(chat_id, animation=f, read_timeout=50, thumbnail=thumb)
-        ).animation
-
-
-class TestAnimationBase:
+class AnimationTestBase:
     animation_file_id = "CgADAQADngIAAuyVeEez0xRovKi9VAI"
     animation_file_unique_id = "adc3145fd2e84d95b64d68eaa22aa33e"
     width = 320
@@ -64,7 +53,7 @@ class TestAnimationBase:
     caption = "Test *animation*"
 
 
-class TestAnimationWithoutRequest(TestAnimationBase):
+class TestAnimationWithoutRequest(AnimationTestBase):
     def test_slot_behaviour(self, animation):
         for attr in animation.__slots__:
             assert getattr(animation, attr, "err") != "err", f"got extra slot '{attr}'"
@@ -82,7 +71,7 @@ class TestAnimationWithoutRequest(TestAnimationBase):
         assert animation.file_name.startswith("game.gif") == self.file_name.startswith("game.gif")
         assert isinstance(animation.thumbnail, PhotoSize)
 
-    def test_de_json(self, bot, animation):
+    def test_de_json(self, offline_bot, animation):
         json_dict = {
             "file_id": self.animation_file_id,
             "file_unique_id": self.animation_file_unique_id,
@@ -94,7 +83,7 @@ class TestAnimationWithoutRequest(TestAnimationBase):
             "mime_type": self.mime_type,
             "file_size": self.file_size,
         }
-        animation = Animation.de_json(json_dict, bot)
+        animation = Animation.de_json(json_dict, offline_bot)
         assert animation.api_kwargs == {}
         assert animation.file_id == self.animation_file_id
         assert animation.file_unique_id == self.animation_file_unique_id
@@ -138,18 +127,24 @@ class TestAnimationWithoutRequest(TestAnimationBase):
         assert a != e
         assert hash(a) != hash(e)
 
-    async def test_send_animation_custom_filename(self, bot, chat_id, animation_file, monkeypatch):
+    async def test_send_animation_custom_filename(
+        self, offline_bot, chat_id, animation_file, monkeypatch
+    ):
         async def make_assertion(url, request_data: RequestData, *args, **kwargs):
             return next(iter(request_data.multipart_data.values()))[0] == "custom_filename"
 
-        monkeypatch.setattr(bot.request, "post", make_assertion)
-        assert await bot.send_animation(chat_id, animation_file, filename="custom_filename")
+        monkeypatch.setattr(offline_bot.request, "post", make_assertion)
+        assert await offline_bot.send_animation(
+            chat_id, animation_file, filename="custom_filename"
+        )
 
     @pytest.mark.parametrize("local_mode", [True, False])
-    async def test_send_animation_local_files(self, monkeypatch, bot, chat_id, local_mode):
+    async def test_send_animation_local_files(
+        self, monkeypatch, offline_bot, chat_id, local_mode, dummy_message_dict
+    ):
         try:
-            bot._local_mode = local_mode
-            # For just test that the correct paths are passed as we have no local bot API set up
+            offline_bot._local_mode = local_mode
+            # For just test that the correct paths are passed as we have no local Bot API set up
             test_flag = False
             file = data_file("telegram.jpg")
             expected = file.as_uri()
@@ -164,19 +159,20 @@ class TestAnimationWithoutRequest(TestAnimationBase):
                     test_flag = isinstance(data.get("animation"), InputFile) and isinstance(
                         data.get("thumbnail"), InputFile
                     )
+                return dummy_message_dict
 
-            monkeypatch.setattr(bot, "_post", make_assertion)
-            await bot.send_animation(chat_id, file, thumbnail=file)
+            monkeypatch.setattr(offline_bot, "_post", make_assertion)
+            await offline_bot.send_animation(chat_id, file, thumbnail=file)
             assert test_flag
         finally:
-            bot._local_mode = False
+            offline_bot._local_mode = False
 
-    async def test_send_with_animation(self, monkeypatch, bot, chat_id, animation):
+    async def test_send_with_animation(self, monkeypatch, offline_bot, chat_id, animation):
         async def make_assertion(url, request_data: RequestData, *args, **kwargs):
             return request_data.json_parameters["animation"] == animation.file_id
 
-        monkeypatch.setattr(bot.request, "post", make_assertion)
-        assert await bot.send_animation(animation=animation, chat_id=chat_id)
+        monkeypatch.setattr(offline_bot.request, "post", make_assertion)
+        assert await offline_bot.send_animation(animation=animation, chat_id=chat_id)
 
     async def test_get_file_instance_method(self, monkeypatch, animation):
         async def make_assertion(*_, **kwargs):
@@ -189,13 +185,43 @@ class TestAnimationWithoutRequest(TestAnimationBase):
         monkeypatch.setattr(animation.get_bot(), "get_file", make_assertion)
         assert await animation.get_file()
 
+    @pytest.mark.parametrize(
+        ("default_bot", "custom"),
+        [
+            ({"parse_mode": ParseMode.HTML}, None),
+            ({"parse_mode": ParseMode.HTML}, ParseMode.MARKDOWN_V2),
+            ({"parse_mode": None}, ParseMode.MARKDOWN_V2),
+        ],
+        indirect=["default_bot"],
+    )
+    async def test_send_animation_default_quote_parse_mode(
+        self, default_bot, chat_id, animation, custom, monkeypatch
+    ):
+        async def make_assertion(url, request_data: RequestData, *args, **kwargs):
+            assert request_data.parameters["reply_parameters"].get("quote_parse_mode") == (
+                custom or default_bot.defaults.quote_parse_mode
+            )
+            return make_message("dummy reply").to_dict()
 
-class TestAnimationWithRequest(TestAnimationBase):
-    async def test_send_all_args(self, bot, chat_id, animation_file, animation, thumb_file):
+        kwargs = {"message_id": 1}
+        if custom is not None:
+            kwargs["quote_parse_mode"] = custom
+
+        monkeypatch.setattr(default_bot.request, "post", make_assertion)
+        await default_bot.send_animation(
+            chat_id, animation, reply_parameters=ReplyParameters(**kwargs)
+        )
+
+
+class TestAnimationWithRequest(AnimationTestBase):
+    @pytest.mark.parametrize("duration", [1, dtm.timedelta(seconds=1)])
+    async def test_send_all_args(
+        self, bot, chat_id, animation_file, animation, thumb_file, duration
+    ):
         message = await bot.send_animation(
             chat_id,
             animation_file,
-            duration=self.duration,
+            duration=duration,
             width=self.width,
             height=self.height,
             caption=self.caption,
@@ -204,6 +230,7 @@ class TestAnimationWithRequest(TestAnimationBase):
             protect_content=True,
             thumbnail=thumb_file,
             has_spoiler=True,
+            show_caption_above_media=True,
         )
 
         assert isinstance(message.animation, Animation)
@@ -213,10 +240,12 @@ class TestAnimationWithRequest(TestAnimationBase):
         assert message.animation.file_unique_id
         assert message.animation.file_name == animation.file_name
         assert message.animation.mime_type == animation.mime_type
-        assert message.animation.file_size == animation.file_size
+        # TGs reported file size is not reliable
+        assert isinstance(message.animation.file_size, int)
         assert message.animation.thumbnail.width == self.width
         assert message.animation.thumbnail.height == self.height
         assert message.has_protected_content
+        assert message.show_caption_above_media
         try:
             assert message.has_media_spoiler
         except AssertionError:
@@ -322,7 +351,7 @@ class TestAnimationWithRequest(TestAnimationBase):
             )
             assert message.reply_to_message is None
         else:
-            with pytest.raises(BadRequest, match="message not found"):
+            with pytest.raises(BadRequest, match="Message to be replied not found"):
                 await default_bot.send_animation(
                     chat_id, animation, reply_to_message_id=reply_to_message.message_id
                 )

@@ -4,6 +4,651 @@
 Changelog
 =========
 
+Version 21.10
+=============
+
+*Released 2025-01-03*
+
+This is the technical changelog for version 21.10. More elaborate release notes can be found in the news channel `@pythontelegrambotchannel <https://t.me/pythontelegrambotchannel>`_.
+
+Major Changes
+-------------
+
+- Full Support for Bot API 8.2 (:pr:`4633`)
+- Bump ``apscheduler`` & Deprecate ``pytz`` Support (:pr:`4582`)
+
+New Features
+------------
+- Add Parameter ``pattern`` to ``JobQueue.jobs()`` (:pr:`4613` closes :issue:`4544`)
+- Allow Input of Type ``Sticker`` for Several Methods (:pr:`4616` closes :issue:`4580`)
+
+Bug Fixes
+---------
+- Ensure Forward Compatibility of ``Gift`` and ``Gifts`` (:pr:`4634` closes :issue:`4637`)
+
+
+Documentation Improvements & Internal Changes
+---------------------------------------------
+
+- Use Custom Labels for ``dependabot`` PRs (:pr:`4621`)
+- Remove Redundant ``pylint`` Suppressions (:pr:`4628`)
+- Update Copyright to 2025 (:pr:`4631`)
+- Refactor Module Structure and Tests for Star Payments Classes (:pr:`4615` closes :issue:`4593`)
+- Unify ``datetime`` Imports (:pr:`4605` by `cuevasrja <https://github.com/cuevasrja>`_ closes :issue:`4577`)
+- Add Static Security Analysis of GitHub Actions Workflows (:pr:`4606`)
+
+Dependency Updates
+------------------
+
+- Bump ``astral-sh/setup-uv`` from 4.2.0 to 5.1.0 (:pr:`4625`)
+- Bump ``codecov/codecov-action`` from 5.1.1 to 5.1.2 (:pr:`4622`)
+- Bump ``actions/upload-artifact`` from 4.4.3 to 4.5.0 (:pr:`4623`)
+- Bump ``github/codeql-action`` from 3.27.9 to 3.28.0 (:pr:`4624`)
+
+Version 21.9
+============
+
+*Released 2024-12-07*
+
+This is the technical changelog for version 21.9. More elaborate release notes can be found in the news channel `@pythontelegrambotchannel <https://t.me/pythontelegrambotchannel>`_.
+
+Major Changes
+-------------
+
+- Full Support for Bot API 8.1 (:pr:`4594` closes :issue:`4592`)
+
+Minor Changes
+-------------
+
+- Use ``MessageLimit.DEEP_LINK_LENGTH`` in ``helpers.create_deep_linked_url`` (:pr:`4597` by `nemacysts <https://github.com/nemacysts>`_)
+- Allow ``Sequence`` Input for ``allowed_updates`` in ``Application`` and ``Updater`` Methods (:pr:`4589` by `nemacysts <https://github.com/nemacysts>`_)
+
+Dependency Updates
+------------------
+
+- Update ``aiolimiter`` requirement from ~=1.1.0 to >=1.1,<1.3 (:pr:`4595`)
+- Bump ``pytest`` from 8.3.3 to 8.3.4 (:pr:`4596`)
+- Bump ``codecov/codecov-action`` from 4 to 5 (:pr:`4585`)
+- Bump ``pylint`` to v3.3.2 to Improve Python 3.13 Support (:pr:`4590` by `nemacysts <https://github.com/nemacysts>`_)
+- Bump ``srvaroa/labeler`` from 1.11.1 to 1.12.0 (:pr:`4586`)
+
+Version 21.8
+============
+*Released 2024-12-01*
+
+This is the technical changelog for version 21.8. More elaborate release notes can be found in the news channel `@pythontelegrambotchannel <https://t.me/pythontelegrambotchannel>`_.
+
+Major Changes
+-------------
+
+- Full Support for Bot API 8.0 (:pr:`4568`, :pr:`4566` closes :issue:`4567`, :pr:`4572`, :pr:`4571`, :pr:`4570`, :pr:`4576`, :pr:`4574`)
+
+Documentation Improvements
+--------------------------
+
+- Documentation Improvements (:pr:`4565` by Snehashish06, :pr:`4573`)
+
+Version 21.7
+============
+*Released 2024-11-04*
+
+This is the technical changelog for version 21.7. More elaborate release notes can be found in the news channel `@pythontelegrambotchannel <https://t.me/pythontelegrambotchannel>`_.
+
+Major Changes
+-------------
+
+- Full Support for Bot API 7.11 (:pr:`4546` closes :issue:`4543`)
+- Add ``Message.reply_paid_media`` (:pr:`4551`)
+- Drop Support for Python 3.8 (:pr:`4398` by `elpekenin <https://github.com/elpekenin>`_)
+
+Minor Changes
+-------------
+
+- Allow ``Sequence`` in ``Application.add_handlers`` (:pr:`4531` by `roast-lord <https://github.com/roast-lord>`_ closes :issue:`4530`)
+- Improve Exception Handling in ``File.download_*`` (:pr:`4542`)
+- Use Stable Python 3.13 Release in Test Suite (:pr:`4535`)
+
+Documentation Improvements
+--------------------------
+
+- Documentation Improvements (:pr:`4536` by `Ecode2 <https://github.com/Ecode2>`_, :pr:`4556`)
+- Fix Linkcheck Workflow (:pr:`4545`)
+- Use ``sphinx-build-compatibility`` to Keep Sphinx Compatibility (:pr:`4492`)
+
+Internal Changes
+----------------
+
+- Improve Test Instability Caused by ``Message`` Fixtures (:pr:`4507`)
+- Stabilize Some Flaky Tests (:pr:`4500`)
+- Reduce Creation of HTTP Clients in Tests (:pr:`4493`)
+- Update ``pytest-xdist`` Usage (:pr:`4491`)
+- Fix Failing Tests by Making Them Independent (:pr:`4494`)
+- Introduce Codecov's Test Analysis (:pr:`4487`)
+- Maintenance Work on ``Bot`` Tests (:pr:`4489`)
+- Introduce ``conftest.py`` for File Related Tests (:pr:`4488`)
+- Update Issue Templates to Use Issue Types (:pr:`4553`)
+- Update Automation to Label Changes (:pr:`4552`)
+
+Dependency Updates
+------------------
+
+- Bump ``srvaroa/labeler`` from 1.11.0 to 1.11.1 (:pr:`4549`)
+- Bump ``sphinx`` from 8.0.2 to 8.1.3 (:pr:`4532`)
+- Bump ``sphinxcontrib-mermaid`` from 0.9.2 to 1.0.0 (:pr:`4529`)
+- Bump ``srvaroa/labeler`` from 1.10.1 to 1.11.0 (:pr:`4509`)
+- Bump ``Bibo-Joshi/pyright-type-completeness`` from 1.0.0 to 1.0.1 (:pr:`4510`)
+
+Version 21.6
+============
+
+*Released 2024-09-19*
+
+This is the technical changelog for version 21.6. More elaborate release notes can be found in the news channel `@pythontelegrambotchannel <https://t.me/pythontelegrambotchannel>`_.
+
+New Features
+------------
+
+- Full Support for Bot API 7.10 (:pr:`4461` closes :issue:`4459`, :pr:`4460`, :pr:`4463` by `aelkheir <https://github.com/aelkheir>`_, :pr:`4464`)
+- Add Parameter ``httpx_kwargs`` to ``HTTPXRequest`` (:pr:`4451` closes :issue:`4424`)
+
+Minor Changes
+-------------
+
+- Improve Type Completeness (:pr:`4466`)
+
+Internal Changes
+----------------
+
+- Update Python 3.13 Test Suite to RC2 (:pr:`4471`)
+- Enforce the ``offline_bot`` Fixture in ``Test*WithoutRequest`` (:pr:`4465`)
+- Make Tests for ``telegram.ext`` Independent of Networking (:pr:`4454`)
+- Rename Testing Base Classes (:pr:`4453`)
+
+Dependency Updates
+------------------
+
+- Bump ``pytest`` from 8.3.2 to 8.3.3 (:pr:`4475`)
+
+Version 21.5
+============
+
+*Released 2024-09-01*
+
+This is the technical changelog for version 21.5. More elaborate release notes can be found in the news channel `@pythontelegrambotchannel <https://t.me/pythontelegrambotchannel>`_.
+
+Major Changes
+-------------
+
+- Full Support for Bot API 7.9 (:pr:`4429`)
+- Full Support for Bot API 7.8 (:pr:`4408`)
+
+New Features
+------------
+
+- Add ``MessageEntity.shift_entities`` and ``MessageEntity.concatenate`` (:pr:`4376` closes :issue:`4372`)
+- Add Parameter ``game_pattern`` to ``CallbackQueryHandler`` (:pr:`4353` by `jainamoswal <https://github.com/jainamoswal>`_ closes :issue:`4269`)
+- Add Parameter ``read_file_handle`` to ``InputFile`` (:pr:`4388` closes :issue:`4339`)
+
+Documentation Improvements
+--------------------------
+
+- Bugfix for "Available In" Admonitions (:pr:`4413`)
+- Documentation Improvements (:pr:`4400` closes :issue:`4446`, :pr:`4448` by `Palaptin <https://github.com/Palaptin>`_)
+- Document Return Types of ``RequestData`` Members (:pr:`4396`)
+- Add Introductory Paragraphs to Telegram Types Subsections (:pr:`4389` by `mohdyusuf2312 <https://github.com/mohdyusuf2312>`_ closes :issue:`4380`)
+- Start Adapting to RTD Addons (:pr:`4386`)
+
+Minor and Internal Changes
+---------------------------
+
+- Remove Surplus Logging from ``Updater`` Network Loop (:pr:`4432` by `MartinHjelmare <https://github.com/MartinHjelmare>`_)
+- Add Internal Constants for Encodings (:pr:`4378` by `elpekenin <https://github.com/elpekenin>`_)
+- Improve PyPI Automation (:pr:`4375` closes :issue:`4373`)
+- Update Test Suite to New Test Channel Setup (:pr:`4435`)
+- Improve Fixture Usage in ``test_message.py`` (:pr:`4431` by `Palaptin <https://github.com/Palaptin>`_)
+- Update Python 3.13 Test Suite to RC1 (:pr:`4415`)
+- Bump ``ruff`` and Add New Rules (:pr:`4416`)
+
+Dependency Updates
+------------------
+
+- Update ``cachetools`` requirement from <5.5.0,>=5.3.3 to >=5.3.3,<5.6.0 (:pr:`4437`)
+- Bump ``sphinx`` from 7.4.7 to 8.0.2 and ``furo`` from 2024.7.18 to 2024.8.6 (:pr:`4412`)
+- Bump ``test-summary/action`` from 2.3 to 2.4 (:pr:`4410`)
+- Bump ``pytest`` from 8.2.2 to 8.3.2 (:pr:`4403`)
+- Bump ``dependabot/fetch-metadata`` from 2.1.0 to 2.2.0 (:pr:`4411`)
+- Update ``cachetools`` requirement from ~=5.3.3 to >=5.3.3,<5.5.0 (:pr:`4390`)
+- Bump ``sphinx`` from 7.3.7 to 7.4.7 (:pr:`4395`)
+- Bump ``furo`` from 2024.5.6 to 2024.7.18 (:pr:`4392`)
+
+Version 21.4
+============
+
+*Released 2024-07-12*
+
+This is the technical changelog for version 21.4. More elaborate release notes can be found in the news channel `@pythontelegrambotchannel <https://t.me/pythontelegrambotchannel>`_.
+
+Major Changes
+-------------
+
+- Full Support for Bot API 7.5 (:pr:`4328`, :pr:`4316`, :pr:`4315`, :pr:`4312` closes :issue:`4310`, :pr:`4311`)
+- Full Support for Bot API 7.6 (:pr:`4333` closes :issue:`4331`, :pr:`4344`, :pr:`4341`, :pr:`4334`, :pr:`4335`, :pr:`4351`, :pr:`4342`, :pr:`4348`)
+- Full Support for Bot API 7.7 (:pr:`4356` closes :issue:`4355`)
+- Drop ``python-telegram-bot-raw`` And Switch to ``pyproject.toml`` Based Packaging (:pr:`4288` closes :issue:`4129` and :issue:`4296`)
+- Deprecate Inclusion of ``successful_payment`` in ``Message.effective_attachment`` (:pr:`4365` closes :issue:`4350`)
+
+New Features
+------------
+
+- Add Support for Python 3.13 Beta (:pr:`4253`)
+- Add ``filters.PAID_MEDIA`` (:pr:`4357`)
+- Log Received Data on Deserialization Errors (:pr:`4304`)
+- Add ``MessageEntity.adjust_message_entities_to_utf_16`` Utility Function (:pr:`4323` by `Antares0982 <https://github.com/Antares0982>`_ closes :issue:`4319`)
+- Make Argument ``bot`` of ``TelegramObject.de_json`` Optional (:pr:`4320`)
+
+Documentation Improvements
+--------------------------
+
+- Documentation Improvements (:pr:`4303` closes :issue:`4301`)
+- Restructure Readme (:pr:`4362`)
+- Fix Link-Check Workflow (:pr:`4332`)
+
+Internal Changes
+----------------
+
+- Automate PyPI Releases (:pr:`4364` closes :issue:`4318`)
+- Add ``mise-en-place`` to ``.gitignore`` (:pr:`4300`)
+- Use a Composite Action for Testing Type Completeness (:pr:`4367`)
+- Stabilize Some Concurrency Usages in Test Suite (:pr:`4360`)
+- Add a Test Case for ``MenuButton`` (:pr:`4363`)
+- Extend ``SuccessfulPayment`` Test (:pr:`4349`)
+- Small Fixes for ``test_stars.py`` (:pr:`4347`)
+- Use Python 3.13 Beta 3 in Test Suite (:pr:`4336`)
+
+Dependency Updates
+------------------
+
+- Bump ``ruff`` and Add New Rules (:pr:`4329`)
+- Bump ``pre-commit`` Hooks to Latest Versions (:pr:`4337`)
+- Add Lower Bound for ``flaky`` Dependency (:pr:`4322` by `Palaptin <https://github.com/Palaptin>`_)
+- Bump ``pytest`` from 8.2.1 to 8.2.2 (:pr:`4294`)
+
+Version 21.3
+============
+*Released 2024-06-07*
+
+This is the technical changelog for version 21.3. More elaborate release notes can be found in the news channel `@pythontelegrambotchannel <https://t.me/pythontelegrambotchannel>`_.
+
+Major Changes
+-------------
+
+- Full Support for Bot API 7.4 (:pr:`4286`, :pr:`4276` closes :issue:`4275`, :pr:`4285`, :pr:`4283`, :pr:`4280`, :pr:`4278`, :pr:`4279`)
+- Deprecate ``python-telegram-bot-raw`` (:pr:`4270`)
+- Remove Functionality Deprecated in Bot API 7.3 (:pr:`4266` closes :issue:`4244`)
+
+New Features
+------------
+
+- Add Parameter ``chat_id`` to ``ChatMemberHandler`` (:pr:`4290` by `uniquetrij <https://github.com/uniquetrij>`_ closes :issue:`4287`)
+
+Documentation Improvements
+--------------------------
+
+- Documentation Improvements (:pr:`4264` closes :issue:`4240`)
+
+Internal Changes
+----------------
+
+- Add ``setuptools`` to ``requirements-dev.txt`` (:pr:`4282`)
+- Update Settings for pre-commit.ci (:pr:`4265`)
+
+Dependency Updates
+------------------
+
+- Bump ``pytest`` from 8.2.0 to 8.2.1 (:pr:`4272`)
+
+Version 21.2
+============
+
+*Released 2024-05-20*
+
+This is the technical changelog for version 21.2. More elaborate release notes can be found in the news channel `@pythontelegrambotchannel <https://t.me/pythontelegrambotchannel>`_.
+
+Major Changes
+-------------
+
+- Full Support for Bot API 7.3 (:pr:`4246`, :pr:`4260`, :pr:`4243`, :pr:`4248`, :pr:`4242` closes :issue:`4236`, :pr:`4247` by `aelkheir <https://github.com/aelkheir>`_)
+- Remove Functionality Deprecated by Bot API 7.2 (:pr:`4245`)
+
+New Features
+------------
+
+- Add Version to ``PTBDeprecationWarning`` (:pr:`4262` closes :issue:`4261`)
+- Handle Exceptions in building ``CallbackContext`` (:pr:`4222`)
+
+Bug Fixes
+---------
+
+- Call ``Application.post_stop`` Only if ``Application.stop`` was called (:pr:`4211` closes :issue:`4210`)
+- Handle ``SystemExit`` raised in Handlers (:pr:`4157` closes :issue:`4155` and :issue:`4156`)
+- Make ``Birthdate.to_date`` Return a ``datetime.date`` Object (:pr:`4251`)
+
+Documentation Improvements
+--------------------------
+
+- Documentation Improvements (:pr:`4217`)
+
+Internal Changes
+----------------
+
+- Add New Rules to ``ruff`` Config (:pr:`4250`)
+- Adapt Test Suite to Changes in Error Messages (:pr:`4238`)
+
+Dependency Updates
+------------------
+
+- Bump ``furo`` from 2024.4.27 to 2024.5.6 (:pr:`4252`)
+- ``pre-commit`` autoupdate (:pr:`4239`)
+- Bump ``pytest`` from 8.1.1 to 8.2.0 (:pr:`4231`)
+- Bump ``dependabot/fetch-metadata`` from 2.0.0 to 2.1.0 (:pr:`4228`)
+- Bump ``pytest-asyncio`` from 0.21.1 to 0.21.2 (:pr:`4232`)
+- Bump ``pytest-xdist`` from 3.6.0 to 3.6.1 (:pr:`4233`)
+- Bump ``furo`` from 2024.1.29 to 2024.4.27 (:pr:`4230`)
+- Bump ``srvaroa/labeler`` from 1.10.0 to 1.10.1 (:pr:`4227`)
+- Bump ``pytest`` from 7.4.4 to 8.1.1 (:pr:`4218`)
+- Bump ``sphinx`` from 7.2.6 to 7.3.7 (:pr:`4215`)
+- Bump ``pytest-xdist`` from 3.5.0 to 3.6.0 (:pr:`4215`)
+
+Version 21.1.1
+==============
+
+*Released 2024-04-15*
+
+This is the technical changelog for version 21.1.1. More elaborate release notes can be found in the news channel `@pythontelegrambotchannel <https://t.me/pythontelegrambotchannel>`__.
+
+Bug Fixes
+---------
+
+-  Fix Bug With Parameter ``message_thread_id`` of ``Message.reply_*`` (:pr:`4207` closes :issue:`4205`)
+
+Minor Changes
+-------------
+
+-  Remove Deprecation Warning in ``JobQueue.run_daily`` (:pr:`4206` by `@Konano <https://github.com/Konano>`__)
+-  Fix Annotation of ``EncryptedCredentials.decrypted_secret`` (:pr:`4199` by `@marinelay <https://github.com/marinelay>`__ closes :issue:`4198`)
+
+
+Version 21.1
+==============
+
+*Released 2024-04-12*
+
+This is the technical changelog for version 21.1. More elaborate release notes can be found in the news channel `@pythontelegrambotchannel <https://t.me/pythontelegrambotchannel>`__.
+
+Major Changes
+-------------
+
+-  API 7.2 (:pr:`4180` closes :issue:`4179` and :issue:`4181`, :issue:`4181`)
+-  Make ``ChatAdministratorRights/ChatMemberAdministrator.can_*_stories`` Required (API 7.1) (:pr:`4192`)
+
+Minor Changes
+-------------
+
+-  Refactor Debug logging in ``Bot`` to Improve Type Hinting (:pr:`4151` closes :issue:`4010`)
+
+New Features
+------------
+
+-  Make ``Message.reply_*`` Reply in the Same Topic by Default (:pr:`4170` by `@aelkheir <https://github.com/aelkheir>`__ closes :issue:`4139`)
+-  Accept Socket Objects for Webhooks (:pr:`4161` closes :issue:`4078`)
+-  Add ``Update.effective_sender`` (:pr:`4168` by `@aelkheir <https://github.com/aelkheir>`__ closes :issue:`4085`)
+
+Documentation Improvements
+--------------------------
+
+-  Documentation Improvements (:pr:`4171`, :pr:`4158` by `@teslaedison <https://github.com/teslaedison>`__)
+
+Internal Changes
+----------------
+
+-  Temporarily Mark Tests with ``get_sticker_set`` as XFAIL due to API 7.2 Update (:pr:`4190`)
+
+Dependency Updates
+------------------
+
+-  ``pre-commit`` autoupdate (:pr:`4184`)
+-  Bump ``dependabot/fetch-metadata`` from 1.6.0 to 2.0.0 (:pr:`4185`)
+
+
+Version 21.0.1
+==============
+
+*Released 2024-03-06*
+
+This is the technical changelog for version 21.0.1. More elaborate release notes can be found in the news channel `@pythontelegrambotchannel <https://t.me/pythontelegrambotchannel>`__.
+
+Bug Fixes
+---------
+
+-  Remove ``docs`` from Package (:pr:`4150`)
+
+
+Version 21.0
+============
+
+*Released 2024-03-06*
+
+This is the technical changelog for version 21.0. More elaborate release notes can be found in the news channel `@pythontelegrambotchannel <https://t.me/pythontelegrambotchannel>`__.
+
+Major Changes
+-------------
+
+-  Remove Functionality Deprecated in API 7.0 (:pr:`4114` closes :issue:`4099`)
+-  API 7.1 (:pr:`4118`)
+
+New Features
+------------
+
+-  Add Parameter ``media_write_timeout`` to ``HTTPXRequest`` and Method ``ApplicationBuilder.media_write_timeout`` (:pr:`4120` closes :issue:`3864`)
+-  Handle Properties in ``TelegramObject.__setstate__`` (:pr:`4134` closes :issue:`4111`)
+
+Bug Fixes
+---------
+
+-  Add Missing Slot to ``Updater`` (:pr:`4130` closes :issue:`4127`)
+
+Documentation Improvements
+--------------------------
+
+-  Improve HTML Download of Documentation (:pr:`4146` closes :issue:`4050`)
+-  Documentation Improvements (:pr:`4109`, :issue:`4116`)
+-  Update Copyright to 2024 (:pr:`4121` by `@aelkheir <https://github.com/aelkheir>`__ closes :issue:`4041`)
+
+Internal Changes
+----------------
+
+-  Apply ``pre-commit`` Checks More Widely (:pr:`4135`)
+-  Refactor and Overhaul ``test_official`` (:pr:`4087` closes :issue:`3874`)
+-  Run Unit Tests in PRs on Requirements Changes (:pr:`4144`)
+-  Make ``Updater.stop`` Independent of ``CancelledError`` (:pr:`4126`)
+
+Dependency Updates
+------------------
+
+-  Relax Upper Bound for ``httpx`` Dependency (:pr:`4148`)
+-  Bump ``test-summary/action`` from 2.2 to 2.3 (:pr:`4142`)
+-  Update ``cachetools`` requirement from ~=5.3.2 to ~=5.3.3 (:pr:`4141`)
+-  Update ``httpx`` requirement from ~=0.26.0 to ~=0.27.0 (:pr:`4131`)
+
+
+Version 20.8
+============
+
+*Released 2024-02-08*
+
+This is the technical changelog for version 20.8. More elaborate release notes can be found in the news channel `@pythontelegrambotchannel <https://t.me/pythontelegrambotchannel>`__.
+
+Major Changes
+-------------
+
+-  API 7.0 (:pr:`4034` closes :issue:`4033`, :pr:`4038` by `@aelkheir <https://github.com/aelkheir>`__)
+
+Minor Changes
+-------------
+
+-  Fix Type Hint for ``filters`` Parameter of ``MessageHandler`` (:pr:`4039` by `@Palaptin <https://github.com/Palaptin>`__)
+-  Deprecate ``filters.CHAT`` (:pr:`4083` closes :issue:`4062`)
+-  Improve Error Handling in Built-In Webhook Handler (:pr:`3987` closes :issue:`3979`)
+
+New Features
+------------
+
+-  Add Parameter ``pattern`` to ``PreCheckoutQueryHandler`` and ``filters.SuccessfulPayment`` (:pr:`4005` by `@aelkheir <https://github.com/aelkheir>`__ closes :issue:`3752`)
+-  Add Missing Conversions of ``type`` to Corresponding Enum from ``telegram.constants`` (:pr:`4067`)
+-  Add Support for Unix Sockets to ``Updater.start_webhook`` (:pr:`3986` closes :issue:`3978`)
+-  Add ``Bot.do_api_request`` (:pr:`4084` closes :issue:`4053`)
+-  Add ``AsyncContextManager`` as Parent Class to ``BaseUpdateProcessor`` (:pr:`4001`)
+
+Documentation Improvements
+--------------------------
+
+-  Documentation Improvements (:pr:`3919`)
+-  Add Docstring to Dunder Methods (:pr:`3929` closes :issue:`3926`)
+-  Documentation Improvements (:pr:`4002`, :pr:`4079` by `@kenjitagawa <https://github.com/kenjitagawa>`__, :pr:`4104` by `@xTudoS <https://github.com/xTudoS>`__)
+
+Internal Changes
+----------------
+
+-  Drop Usage of DeepSource (:pr:`4100`)
+-  Improve Type Completeness & Corresponding Workflow (:pr:`4035`)
+-  Bump ``ruff`` and Remove ``sort-all`` (:pr:`4075`)
+-  Move Handler Files to ``_handlers`` Subdirectory (:pr:`4064` by `@lucasmolinari <https://github.com/lucasmolinari>`__ closes :issue:`4060`)
+-  Introduce ``sort-all`` Hook for ``pre-commit`` (:pr:`4052`)
+-  Use Recommended ``pre-commit`` Mirror for ``black`` (:pr:`4051`)
+-  Remove Unused ``DEFAULT_20`` (:pr:`3997`)
+-  Migrate From ``setup.cfg`` to ``pyproject.toml`` Where Possible (:pr:`4088`)
+
+Dependency Updates
+------------------
+
+-  Bump ``black`` and ``ruff`` (:pr:`4089`)
+-  Bump ``srvaroa/labeler`` from 1.8.0 to 1.10.0 (:pr:`4048`)
+-  Update ``tornado`` requirement from ~=6.3.3 to ~=6.4 (:pr:`3992`)
+-  Bump ``actions/stale`` from 8 to 9 (:pr:`4046`)
+-  Bump ``actions/setup-python`` from 4 to 5 (:pr:`4047`)
+-  ``pre-commit`` autoupdate (:pr:`4101`)
+-  Bump ``actions/upload-artifact`` from 3 to 4 (:pr:`4045`)
+-  ``pre-commit`` autoupdate (:pr:`3996`)
+-  Bump ``furo`` from 2023.9.10 to 2024.1.29 (:pr:`4094`)
+-  ``pre-commit`` autoupdate (:pr:`4043`)
+-  Bump ``codecov/codecov-action`` from 3 to 4 (:pr:`4091`)
+-  Bump ``EndBug/add-and-commit`` from 9.1.3 to 9.1.4 (:pr:`4090`)
+-  Update ``httpx`` requirement from ~=0.25.2 to ~=0.26.0 (:pr:`4024`)
+-  Bump ``pytest`` from 7.4.3 to 7.4.4 (:pr:`4056`)
+-  Bump ``srvaroa/labeler`` from 1.7.0 to 1.8.0 (:pr:`3993`)
+-  Bump ``test-summary/action`` from 2.1 to 2.2 (:pr:`4044`)
+-  Bump ``dessant/lock-threads`` from 4.0.1 to 5.0.1 (:pr:`3994`)
+
+
+Version 20.7
+============
+
+*Released 2023-11-27*
+
+This is the technical changelog for version 20.7. More elaborate release notes can be found in the news channel `@pythontelegrambotchannel <https://t.me/pythontelegrambotchannel>`__.
+
+New Features
+------------
+
+-  Add ``JobQueue.scheduler_configuration`` and Corresponding Warnings (:pr:`3913` closes :issue:`3837`)
+-  Add Parameter ``socket_options`` to ``HTTPXRequest`` (:pr:`3935` closes :issue:`2965`)
+-  Add ``ApplicationBuilder.(get_updates_)socket_options`` (:pr:`3943`)
+-  Improve ``write_timeout`` Handling for Media Methods (:pr:`3952`)
+-  Add ``filters.Mention`` (:pr:`3941` closes :issue:`3799`)
+-  Rename ``proxy_url`` to ``proxy`` and Allow ``httpx.{Proxy, URL}`` as Input (:pr:`3939` closes :issue:`3844`)
+
+Bug Fixes & Changes
+-------------------
+
+-  Adjust ``read_timeout`` Behavior for ``Bot.get_updates`` (:pr:`3963` closes :issue:`3893`)
+-  Improve ``BaseHandler.__repr__`` for Callbacks without ``__qualname__`` (:pr:`3934`)
+-  Fix Persistency Issue with Ended Non-Blocking Conversations (:pr:`3962`)
+-  Improve Type Hinting for Arguments with Default Values in ``Bot`` (:pr:`3942`)
+
+Documentation Improvements
+--------------------------
+
+-  Add Documentation for ``__aenter__`` and ``__aexit__`` Methods (:pr:`3907` closes :issue:`3886`)
+-  Improve Insertion of Kwargs into ``Bot`` Methods (:pr:`3965`)
+
+Internal Changes
+----------------
+
+-  Adjust Tests to New Error Messages (:pr:`3970`)
+
+Dependency Updates
+------------------
+
+-  Bump ``pytest-xdist`` from 3.3.1 to 3.4.0 (:pr:`3975`)
+-  ``pre-commit`` autoupdate (:pr:`3967`)
+-  Update ``httpx`` requirement from ~=0.25.1 to ~=0.25.2 (:pr:`3983`)
+-  Bump ``pytest-xdist`` from 3.4.0 to 3.5.0 (:pr:`3982`)
+-  Update ``httpx`` requirement from ~=0.25.0 to ~=0.25.1 (:pr:`3961`)
+-  Bump ``srvaroa/labeler`` from 1.6.1 to 1.7.0 (:pr:`3958`)
+-  Update ``cachetools`` requirement from ~=5.3.1 to ~=5.3.2 (:pr:`3954`)
+-  Bump ``pytest`` from 7.4.2 to 7.4.3 (:pr:`3953`)
+
+
+Version 20.6
+============
+
+*Released 2023-10-03*
+
+This is the technical changelog for version 20.6. More elaborate release notes can be found in the news channel `@pythontelegrambotchannel <https://t.me/pythontelegrambotchannel>`__.
+
+Major Changes
+-------------
+
+-  Drop Backward Compatibility Layer Introduced in :pr:`3853` (API 6.8) (:pr:`3873`)
+-  Full Support for Bot API 6.9 (:pr:`3898`)
+
+New Features
+------------
+
+-  Add Rich Equality Comparison to ``WriteAccessAllowed`` (:pr:`3911` closes :issue:`3909`)
+-  Add ``__repr__`` Methods Added in :pr:`3826` closes :issue:`3770` to Sphinx Documentation (:pr:`3901` closes :issue:`3889`)
+-  Add String Representation for Selected Classes (:pr:`3826` closes :issue:`3770`)
+
+Minor Changes
+-------------
+
+-  Add Support Python 3.12 (:pr:`3915`)
+-  Documentation Improvements (:pr:`3910`)
+
+Internal Changes
+----------------
+
+-  Verify Type Hints for Bot Method & Telegram Class Parameters (:pr:`3868`)
+-  Move Bot API Tests to Separate Workflow File (:pr:`3912`)
+-  Fix Failing ``file_size`` Tests (:pr:`3906`)
+-  Set Threshold for DeepSource’s PY-R1000 to High (:pr:`3888`)
+-  One-Time Code Formatting Improvement via ``--preview`` Flag of ``black`` (:pr:`3882`)
+-  Move Dunder Methods to the Top of Class Bodies (:pr:`3883`)
+-  Remove Superfluous ``Defaults.__ne__`` (:pr:`3884`)
+
+Dependency Updates
+------------------
+
+-  ``pre-commit`` autoupdate (:pr:`3876`)
+-  Update ``pre-commit`` Dependencies (:pr:`3916`)
+-  Bump ``actions/checkout`` from 3 to 4 (:pr:`3914`)
+-  Update ``httpx`` requirement from ~=0.24.1 to ~=0.25.0 (:pr:`3891`)
+-  Bump ``furo`` from 2023.8.19 to 2023.9.10 (:pr:`3890`)
+-  Bump ``sphinx`` from 7.2.5 to 7.2.6 (:pr:`3892`)
+-  Update ``tornado`` requirement from ~=6.2 to ~=6.3.3 (:pr:`3675`)
+-  Bump ``pytest`` from 7.4.0 to 7.4.2 (:pr:`3881`)
+
+
 Version 20.5
 ============
 *Released 2023-09-03*

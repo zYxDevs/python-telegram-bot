@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 #
 # A library that provides a Python interface to the Telegram Bot API
-# Copyright (C) 2015-2023
+# Copyright (C) 2015-2025
 # Leandro Toledo de Souza <devs@python-telegram-bot.org>
 #
 # This program is free software: you can redistribute it and/or modify
@@ -32,19 +32,19 @@ from tests.auxil.slots import mro_slots
 @pytest.fixture(scope="module")
 def inline_query_result_voice():
     return InlineQueryResultVoice(
-        id=TestInlineQueryResultVoiceBase.id_,
-        voice_url=TestInlineQueryResultVoiceBase.voice_url,
-        title=TestInlineQueryResultVoiceBase.title,
-        voice_duration=TestInlineQueryResultVoiceBase.voice_duration,
-        caption=TestInlineQueryResultVoiceBase.caption,
-        parse_mode=TestInlineQueryResultVoiceBase.parse_mode,
-        caption_entities=TestInlineQueryResultVoiceBase.caption_entities,
-        input_message_content=TestInlineQueryResultVoiceBase.input_message_content,
-        reply_markup=TestInlineQueryResultVoiceBase.reply_markup,
+        id=InlineQueryResultVoiceTestBase.id_,
+        voice_url=InlineQueryResultVoiceTestBase.voice_url,
+        title=InlineQueryResultVoiceTestBase.title,
+        voice_duration=InlineQueryResultVoiceTestBase.voice_duration,
+        caption=InlineQueryResultVoiceTestBase.caption,
+        parse_mode=InlineQueryResultVoiceTestBase.parse_mode,
+        caption_entities=InlineQueryResultVoiceTestBase.caption_entities,
+        input_message_content=InlineQueryResultVoiceTestBase.input_message_content,
+        reply_markup=InlineQueryResultVoiceTestBase.reply_markup,
     )
 
 
-class TestInlineQueryResultVoiceBase:
+class InlineQueryResultVoiceTestBase:
     id_ = "id"
     type_ = "voice"
     voice_url = "voice url"
@@ -57,7 +57,7 @@ class TestInlineQueryResultVoiceBase:
     reply_markup = InlineKeyboardMarkup([[InlineKeyboardButton("reply_markup")]])
 
 
-class TestInlineQueryResultVoiceWithoutRequest(TestInlineQueryResultVoiceBase):
+class TestInlineQueryResultVoiceWithoutRequest(InlineQueryResultVoiceTestBase):
     def test_slot_behaviour(self, inline_query_result_voice):
         inst = inline_query_result_voice
         for attr in inst.__slots__:

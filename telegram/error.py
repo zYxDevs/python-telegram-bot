@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 #
 # A library that provides a Python interface to the Telegram Bot API
-# Copyright (C) 2015-2023
+# Copyright (C) 2015-2025
 # Leandro Toledo de Souza <devs@python-telegram-bot.org>
 #
 # This program is free software: you can redistribute it and/or modify
@@ -26,6 +26,7 @@ __all__ = (
     "BadRequest",
     "ChatMigrated",
     "Conflict",
+    "EndPointNotFound",
     "Forbidden",
     "InvalidToken",
     "NetworkError",
@@ -35,20 +36,7 @@ __all__ = (
     "TimedOut",
 )
 
-from typing import Optional, Tuple, Union
-
-
-def _lstrip_str(in_s: str, lstr: str) -> str:
-    """
-    Args:
-        in_s (:obj:`str`): in string
-        lstr (:obj:`str`): substr to strip from left side
-
-    Returns:
-        :obj:`str`: The stripped string.
-
-    """
-    return in_s[len(lstr) :] if in_s.startswith(lstr) else in_s
+from typing import Optional, Union
 
 
 class TelegramError(Exception):
@@ -69,21 +57,39 @@ class TelegramError(Exception):
     def __init__(self, message: str):
         super().__init__()
 
-        msg = _lstrip_str(message, "Error: ")
-        msg = _lstrip_str(msg, "[Error]: ")
-        msg = _lstrip_str(msg, "Bad Request: ")
+        msg = message.removeprefix("Error: ")
+        msg = msg.removeprefix("[Error]: ")
+        msg = msg.removeprefix("Bad Request: ")
         if msg != message:
             # api_error - capitalize the msg...
             msg = msg.capitalize()
         self.message: str = msg
 
     def __str__(self) -> str:
+        """Gives the string representation of exceptions message.
+
+        Returns:
+           :obj:`str`
+        """
         return self.message
 
     def __repr__(self) -> str:
+        """Gives an unambiguous string representation of the exception.
+
+        Returns:
+           :obj:`str`
+        """
         return f"{self.__class__.__name__}('{self.message}')"
 
-    def __reduce__(self) -> Tuple[type, Tuple[str]]:
+    def __reduce__(self) -> tuple[type, tuple[str]]:
+        """Defines how to serialize the exception for pickle.
+
+        .. seealso::
+               :py:meth:`object.__reduce__`, :mod:`pickle`.
+
+        Returns:
+            :obj:`tuple`
+        """
         return self.__class__, (self.message,)
 
 
@@ -113,6 +119,16 @@ class InvalidToken(TelegramError):
 
     def __init__(self, message: Optional[str] = None) -> None:
         super().__init__("Invalid token" if message is None else message)
+
+
+class EndPointNotFound(TelegramError):
+    """Raised when the requested endpoint is not found. Only relevant for
+    :meth:`telegram.Bot.do_api_request`.
+
+    .. versionadded:: 20.8
+    """
+
+    __slots__ = ()
 
 
 class NetworkError(TelegramError):
@@ -180,7 +196,7 @@ class ChatMigrated(TelegramError):
         super().__init__(f"Group migrated to supergroup. New chat id: {new_chat_id}")
         self.new_chat_id: int = new_chat_id
 
-    def __reduce__(self) -> Tuple[type, Tuple[int]]:  # type: ignore[override]
+    def __reduce__(self) -> tuple[type, tuple[int]]:  # type: ignore[override]
         return self.__class__, (self.new_chat_id,)
 
 
@@ -205,7 +221,7 @@ class RetryAfter(TelegramError):
         super().__init__(f"Flood control exceeded. Retry in {retry_after} seconds")
         self.retry_after: int = retry_after
 
-    def __reduce__(self) -> Tuple[type, Tuple[float]]:  # type: ignore[override]
+    def __reduce__(self) -> tuple[type, tuple[float]]:  # type: ignore[override]
         return self.__class__, (self.retry_after,)
 
 
@@ -214,7 +230,7 @@ class Conflict(TelegramError):
 
     __slots__ = ()
 
-    def __reduce__(self) -> Tuple[type, Tuple[str]]:
+    def __reduce__(self) -> tuple[type, tuple[str]]:
         return self.__class__, (self.message,)
 
 
@@ -232,5 +248,5 @@ class PassportDecryptionError(TelegramError):
         super().__init__(f"PassportDecryptionError: {message}")
         self._msg = str(message)
 
-    def __reduce__(self) -> Tuple[type, Tuple[str]]:
+    def __reduce__(self) -> tuple[type, tuple[str]]:
         return self.__class__, (self._msg,)

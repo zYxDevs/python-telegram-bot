@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 #
 # A library that provides a Python interface to the Telegram Bot API
-# Copyright (C) 2015-2023
+# Copyright (C) 2015-2025
 # Leandro Toledo de Souza <devs@python-telegram-bot.org>
 #
 # This program is free software: you can redistribute it and/or modify
@@ -32,22 +32,23 @@ from tests.auxil.slots import mro_slots
 @pytest.fixture(scope="module")
 def inline_query_result_photo():
     return InlineQueryResultPhoto(
-        TestInlineQueryResultPhotoBase.id_,
-        TestInlineQueryResultPhotoBase.photo_url,
-        TestInlineQueryResultPhotoBase.thumbnail_url,
-        photo_width=TestInlineQueryResultPhotoBase.photo_width,
-        photo_height=TestInlineQueryResultPhotoBase.photo_height,
-        title=TestInlineQueryResultPhotoBase.title,
-        description=TestInlineQueryResultPhotoBase.description,
-        caption=TestInlineQueryResultPhotoBase.caption,
-        parse_mode=TestInlineQueryResultPhotoBase.parse_mode,
-        caption_entities=TestInlineQueryResultPhotoBase.caption_entities,
-        input_message_content=TestInlineQueryResultPhotoBase.input_message_content,
-        reply_markup=TestInlineQueryResultPhotoBase.reply_markup,
+        InlineQueryResultPhotoTestBase.id_,
+        InlineQueryResultPhotoTestBase.photo_url,
+        InlineQueryResultPhotoTestBase.thumbnail_url,
+        photo_width=InlineQueryResultPhotoTestBase.photo_width,
+        photo_height=InlineQueryResultPhotoTestBase.photo_height,
+        title=InlineQueryResultPhotoTestBase.title,
+        description=InlineQueryResultPhotoTestBase.description,
+        caption=InlineQueryResultPhotoTestBase.caption,
+        parse_mode=InlineQueryResultPhotoTestBase.parse_mode,
+        caption_entities=InlineQueryResultPhotoTestBase.caption_entities,
+        input_message_content=InlineQueryResultPhotoTestBase.input_message_content,
+        reply_markup=InlineQueryResultPhotoTestBase.reply_markup,
+        show_caption_above_media=InlineQueryResultPhotoTestBase.show_caption_above_media,
     )
 
 
-class TestInlineQueryResultPhotoBase:
+class InlineQueryResultPhotoTestBase:
     id_ = "id"
     type_ = "photo"
     photo_url = "photo url"
@@ -62,9 +63,10 @@ class TestInlineQueryResultPhotoBase:
 
     input_message_content = InputTextMessageContent("input_message_content")
     reply_markup = InlineKeyboardMarkup([[InlineKeyboardButton("reply_markup")]])
+    show_caption_above_media = True
 
 
-class TestInlineQueryResultPhotoWithoutRequest(TestInlineQueryResultPhotoBase):
+class TestInlineQueryResultPhotoWithoutRequest(InlineQueryResultPhotoTestBase):
     def test_slot_behaviour(self, inline_query_result_photo):
         inst = inline_query_result_photo
         for attr in inst.__slots__:
@@ -88,6 +90,7 @@ class TestInlineQueryResultPhotoWithoutRequest(TestInlineQueryResultPhotoBase):
             == self.input_message_content.to_dict()
         )
         assert inline_query_result_photo.reply_markup.to_dict() == self.reply_markup.to_dict()
+        assert inline_query_result_photo.show_caption_above_media == self.show_caption_above_media
 
     def test_caption_entities_always_tuple(self):
         result = InlineQueryResultPhoto(self.id_, self.photo_url, self.thumbnail_url)
@@ -127,6 +130,10 @@ class TestInlineQueryResultPhotoWithoutRequest(TestInlineQueryResultPhotoBase):
         assert (
             inline_query_result_photo_dict["reply_markup"]
             == inline_query_result_photo.reply_markup.to_dict()
+        )
+        assert (
+            inline_query_result_photo_dict["show_caption_above_media"]
+            == inline_query_result_photo.show_caption_above_media
         )
 
     def test_equality(self):

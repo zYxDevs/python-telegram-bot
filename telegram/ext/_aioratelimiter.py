@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 #
 #  A library that provides a Python interface to the Telegram Bot API
-#  Copyright (C) 2015-2023
+#  Copyright (C) 2015-2025
 #  Leandro Toledo de Souza <devs@python-telegram-bot.org>
 #
 #  This program is free software: you can redistribute it and/or modify
@@ -22,7 +22,8 @@ library.
 import asyncio
 import contextlib
 import sys
-from typing import Any, AsyncIterator, Callable, Coroutine, Dict, List, Optional, Union
+from collections.abc import AsyncIterator, Coroutine
+from typing import Any, Callable, Optional, Union
 
 try:
     from aiolimiter import AsyncLimiter
@@ -31,6 +32,7 @@ try:
 except ImportError:
     AIO_LIMITER_AVAILABLE = False
 
+from telegram import constants
 from telegram._utils.logging import get_logger
 from telegram._utils.types import JSONDict
 from telegram.error import RetryAfter
@@ -85,7 +87,21 @@ class AIORateLimiter(BaseRateLimiter[int]):
         * A :exc:`~telegram.error.RetryAfter` exception will halt *all* requests for
           :attr:`~telegram.error.RetryAfter.retry_after` + 0.1 seconds. This may be stricter than
           necessary in some cases, e.g. the bot may hit a rate limit in one group but might still
-          be allowed to send messages in another group.
+          be allowed to send messages in another group or with
+          :paramref:`~telegram.Bot.send_message.allow_paid_broadcast` set to :obj:`True`.
+
+    Tip:
+        With `Bot API 7.1 <https://core.telegram.org/bots/api-changelog#october-31-2024>`_
+        (PTB v27.1), Telegram introduced the parameter
+        :paramref:`~telegram.Bot.send_message.allow_paid_broadcast`.
+        This allows bots to send up to
+        :tg-const:`telegram.constants.FloodLimit.PAID_MESSAGES_PER_SECOND` messages per second by
+        paying a fee in Telegram Stars.
+
+        .. versionchanged:: NEXT.VERSION
+            This class automatically takes the
+            :paramref:`~telegram.Bot.send_message.allow_paid_broadcast` parameter into account and
+            throttles the requests accordingly.
 
     Note:
         This class is to be understood as minimal effort reference implementation.
@@ -100,16 +116,17 @@ class AIORateLimiter(BaseRateLimiter[int]):
     Args:
         overall_max_rate (:obj:`float`): The maximum number of requests allowed for the entire bot
             per :paramref:`overall_time_period`. When set to 0, no rate limiting will be applied.
-            Defaults to ``30``.
+            Defaults to :tg-const:`telegram.constants.FloodLimit.MESSAGES_PER_SECOND`.
         overall_time_period (:obj:`float`): The time period (in seconds) during which the
             :paramref:`overall_max_rate` is enforced.  When set to 0, no rate limiting will be
-            applied. Defaults to 1.
+            applied. Defaults to ``1``.
         group_max_rate (:obj:`float`): The maximum number of requests allowed for requests related
             to groups and channels per :paramref:`group_time_period`.  When set to 0, no rate
-            limiting will be applied. Defaults to 20.
+            limiting will be applied. Defaults to
+            :tg-const:`telegram.constants.FloodLimit.MESSAGES_PER_MINUTE_PER_GROUP`.
         group_time_period (:obj:`float`): The time period (in seconds) during which the
             :paramref:`group_max_rate` is enforced.  When set to 0, no rate limiting will be
-            applied. Defaults to 60.
+            applied. Defaults to ``60``.
         max_retries (:obj:`int`): The maximum number of retries to be made in case of a
             :exc:`~telegram.error.RetryAfter` exception.
             If set to 0, no retries will be made. Defaults to ``0``.
@@ -117,6 +134,7 @@ class AIORateLimiter(BaseRateLimiter[int]):
     """
 
     __slots__ = (
+        "_apb_limiter",
         "_base_limiter",
         "_group_limiters",
         "_group_max_rate",
@@ -127,9 +145,9 @@ class AIORateLimiter(BaseRateLimiter[int]):
 
     def __init__(
         self,
-        overall_max_rate: float = 30,
+        overall_max_rate: float = constants.FloodLimit.MESSAGES_PER_SECOND,
         overall_time_period: float = 1,
-        group_max_rate: float = 20,
+        group_max_rate: float = constants.FloodLimit.MESSAGES_PER_MINUTE_PER_GROUP,
         group_time_period: float = 60,
         max_retries: int = 0,
     ) -> None:
@@ -152,7 +170,10 @@ class AIORateLimiter(BaseRateLimiter[int]):
             self._group_max_rate = 0
             self._group_time_period = 0
 
-        self._group_limiters: Dict[Union[str, int], AsyncLimiter] = {}
+        self._group_limiters: dict[Union[str, int], AsyncLimiter] = {}
+        self._apb_limiter: AsyncLimiter = AsyncLimiter(
+            max_rate=constants.FloodLimit.PAID_MESSAGES_PER_SECOND, time_period=1
+        )
         self._max_retries: int = max_retries
         self._retry_after_event = asyncio.Event()
         self._retry_after_event.set()
@@ -187,31 +208,40 @@ class AIORateLimiter(BaseRateLimiter[int]):
         self,
         chat: bool,
         group: Union[str, int, bool],
-        callback: Callable[..., Coroutine[Any, Any, Union[bool, JSONDict, List[JSONDict]]]],
+        allow_paid_broadcast: bool,
+        callback: Callable[..., Coroutine[Any, Any, Union[bool, JSONDict, list[JSONDict]]]],
         args: Any,
-        kwargs: Dict[str, Any],
-    ) -> Union[bool, JSONDict, List[JSONDict]]:
-        base_context = self._base_limiter if (chat and self._base_limiter) else null_context()
-        group_context = (
-            self._get_group_limiter(group) if group and self._group_max_rate else null_context()
-        )
-
-        async with group_context, base_context:
+        kwargs: dict[str, Any],
+    ) -> Union[bool, JSONDict, list[JSONDict]]:
+        async def inner() -> Union[bool, JSONDict, list[JSONDict]]:
             # In case a retry_after was hit, we wait with processing the request
             await self._retry_after_event.wait()
-
             return await callback(*args, **kwargs)
+
+        if allow_paid_broadcast:
+            async with self._apb_limiter:
+                return await inner()
+        else:
+            base_context = self._base_limiter if (chat and self._base_limiter) else null_context()
+            group_context = (
+                self._get_group_limiter(group)
+                if group and self._group_max_rate
+                else null_context()
+            )
+
+            async with group_context, base_context:
+                return await inner()
 
     # mypy doesn't understand that the last run of the for loop raises an exception
     async def process_request(
         self,
-        callback: Callable[..., Coroutine[Any, Any, Union[bool, JSONDict, List[JSONDict]]]],
+        callback: Callable[..., Coroutine[Any, Any, Union[bool, JSONDict, list[JSONDict]]]],
         args: Any,
-        kwargs: Dict[str, Any],
-        endpoint: str,  # skipcq: PYL-W0613
-        data: Dict[str, Any],
+        kwargs: dict[str, Any],
+        endpoint: str,  # noqa: ARG002
+        data: dict[str, Any],
         rate_limit_args: Optional[int],
-    ) -> Union[bool, JSONDict, List[JSONDict]]:
+    ) -> Union[bool, JSONDict, list[JSONDict]]:
         """
         Processes a request by applying rate limiting.
 
@@ -228,12 +258,13 @@ class AIORateLimiter(BaseRateLimiter[int]):
         group: Union[int, str, bool] = False
         chat: bool = False
         chat_id = data.get("chat_id")
+        allow_paid_broadcast = data.get("allow_paid_broadcast", False)
         if chat_id is not None:
             chat = True
 
         # In case user passes integer chat id as string
         with contextlib.suppress(ValueError, TypeError):
-            chat_id = int(chat_id)
+            chat_id = int(chat_id)  # type: ignore[arg-type]
 
         if (isinstance(chat_id, int) and chat_id < 0) or isinstance(chat_id, str):
             # string chat_id only works for channels and supergroups
@@ -243,14 +274,19 @@ class AIORateLimiter(BaseRateLimiter[int]):
         for i in range(max_retries + 1):
             try:
                 return await self._run_request(
-                    chat=chat, group=group, callback=callback, args=args, kwargs=kwargs
+                    chat=chat,
+                    group=group,
+                    allow_paid_broadcast=allow_paid_broadcast,
+                    callback=callback,
+                    args=args,
+                    kwargs=kwargs,
                 )
             except RetryAfter as exc:
                 if i == max_retries:
                     _LOGGER.exception(
                         "Rate limit hit after maximum of %d retries", max_retries, exc_info=exc
                     )
-                    raise exc
+                    raise
 
                 sleep = exc.retry_after + 0.1
                 _LOGGER.info("Rate limit hit. Retrying after %f seconds", sleep)

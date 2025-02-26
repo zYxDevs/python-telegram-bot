@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 #
 # A library that provides a Python interface to the Telegram Bot API
-# Copyright (C) 2015-2023
+# Copyright (C) 2015-2025
 # Leandro Toledo de Souza <devs@python-telegram-bot.org>
 #
 # This program is free software: you can redistribute it and/or modify
@@ -17,7 +17,7 @@
 # You should have received a copy of the GNU Lesser Public License
 # along with this program.  If not, see [http://www.gnu.org/licenses/].
 
-from telegram.ext._basehandler import BaseHandler
+from telegram.ext import BaseHandler
 from tests.auxil.slots import mro_slots
 
 
@@ -52,3 +52,23 @@ class TestHandler:
 
         sh = SubclassHandler()
         assert repr(sh) == "SubclassHandler[callback=TestHandler.test_repr.<locals>.some_func]"
+
+    def test_repr_no_qualname(self):
+        class ClassBasedCallback:
+            async def __call__(self, *args, **kwargs):
+                pass
+
+            def __repr__(self):
+                return "Repr of ClassBasedCallback"
+
+        class SubclassHandler(BaseHandler):
+            __slots__ = ()
+
+            def __init__(self):
+                super().__init__(callback=ClassBasedCallback())
+
+            def check_update(self, update: object):
+                pass
+
+        sh = SubclassHandler()
+        assert repr(sh) == "SubclassHandler[callback=Repr of ClassBasedCallback]"

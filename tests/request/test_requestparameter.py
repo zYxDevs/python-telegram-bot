@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 #
 # A library that provides a Python interface to the Telegram Bot API
-# Copyright (C) 2015-2023
+# Copyright (C) 2015-2025
 # Leandro Toledo de Souza <devs@python-telegram-bot.org>
 #
 # This program is free software: you can redistribute it and/or modify
@@ -16,8 +16,8 @@
 #
 # You should have received a copy of the GNU Lesser Public License
 # along with this program.  If not, see [http://www.gnu.org/licenses/].
-import datetime
-from typing import Sequence
+import datetime as dtm
+from collections.abc import Sequence
 
 import pytest
 
@@ -82,14 +82,15 @@ class TestRequestParameterWithoutRequest:
             ({1: 1.0}, {1: 1.0}),
             (ChatType.PRIVATE, "private"),
             (MessageEntity("type", 1, 1), {"type": "type", "offset": 1, "length": 1}),
-            (datetime.datetime(2019, 11, 11, 0, 26, 16, 10**5), 1573431976),
+            (dtm.datetime(2019, 11, 11, 0, 26, 16, 10**5), 1573431976),
+            (dtm.timedelta(days=42), 42 * 24 * 60 * 60),
             (
                 [
                     True,
                     "str",
                     MessageEntity("type", 1, 1),
                     ChatType.PRIVATE,
-                    datetime.datetime(2019, 11, 11, 0, 26, 16, 10**5),
+                    dtm.datetime(2019, 11, 11, 0, 26, 16, 10**5),
                 ],
                 [True, "str", {"type": "type", "offset": 1, "length": 1}, "private", 1573431976],
             ),
@@ -99,6 +100,19 @@ class TestRequestParameterWithoutRequest:
         request_parameter = RequestParameter.from_input("key", value)
         assert request_parameter.value == expected_value
         assert request_parameter.input_files is None
+
+    @pytest.mark.parametrize(
+        ("value", "expected_type", "expected_value"),
+        [
+            (dtm.timedelta(seconds=1), int, 1),
+            (dtm.timedelta(milliseconds=1), float, 0.001),
+        ],
+    )
+    def test_from_input_timedelta(self, value, expected_type, expected_value):
+        request_parameter = RequestParameter.from_input("key", value)
+        assert request_parameter.value == expected_value
+        assert request_parameter.input_files is None
+        assert isinstance(request_parameter.value, expected_type)
 
     def test_from_input_inputfile(self):
         inputfile_1 = InputFile("data1", filename="inputfile_1", attach=True)
@@ -163,7 +177,7 @@ class TestRequestParameterWithoutRequest:
         assert request_parameter.input_files == [input_media.media, input_media.thumbnail]
 
     def test_from_input_inputsticker(self):
-        input_sticker = InputSticker(data_file("telegram.png").read_bytes(), ["emoji"])
+        input_sticker = InputSticker(data_file("telegram.png").read_bytes(), ["emoji"], "static")
         expected = input_sticker.to_dict()
         expected.update({"sticker": input_sticker.sticker.attach_uri})
         request_parameter = RequestParameter.from_input("key", input_sticker)

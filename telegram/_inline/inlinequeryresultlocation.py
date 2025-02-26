@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 #
 # A library that provides a Python interface to the Telegram Bot API
-# Copyright (C) 2015-2023
+# Copyright (C) 2015-2025
 # Leandro Toledo de Souza <devs@python-telegram-bot.org>
 #
 # This program is free software: you can redistribute it and/or modify
@@ -89,7 +89,9 @@ class InlineQueryResultLocation(InlineQueryResult):
         live_period (:obj:`int`): Optional. Period in seconds for which the location will be
             updated, should be between
             :tg-const:`telegram.InlineQueryResultLocation.MIN_LIVE_PERIOD` and
-            :tg-const:`telegram.InlineQueryResultLocation.MAX_LIVE_PERIOD`.
+            :tg-const:`telegram.InlineQueryResultLocation.MAX_LIVE_PERIOD` or
+            :tg-const:`telegram.constants.LocationLimit.LIVE_PERIOD_FOREVER` for live
+            locations that can be edited indefinitely.
         heading (:obj:`int`): Optional. For live locations, a direction in which the user is
             moving, in degrees. Must be between
             :tg-const:`telegram.InlineQueryResultLocation.MIN_HEADING` and
@@ -116,18 +118,18 @@ class InlineQueryResultLocation(InlineQueryResult):
     """
 
     __slots__ = (
-        "longitude",
-        "reply_markup",
-        "thumbnail_width",
-        "thumbnail_height",
         "heading",
-        "title",
-        "live_period",
-        "proximity_alert_radius",
+        "horizontal_accuracy",
         "input_message_content",
         "latitude",
-        "horizontal_accuracy",
+        "live_period",
+        "longitude",
+        "proximity_alert_radius",
+        "reply_markup",
+        "thumbnail_height",
         "thumbnail_url",
+        "thumbnail_width",
+        "title",
     )
 
     def __init__(

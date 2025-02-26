@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 #
 #  A library that provides a Python interface to the Telegram Bot API
-#  Copyright (C) 2015-2023
+#  Copyright (C) 2015-2025
 #  Leandro Toledo de Souza <devs@python-telegram-bot.org>
 #
 #  This program is free software: you can redistribute it and/or modify
@@ -17,9 +17,10 @@
 #  You should have received a copy of the GNU Lesser Public License
 #  along with this program.  If not, see [http://www.gnu.org/licenses/].
 """This module contains the CallbackDataCache class."""
+import datetime as dtm
 import time
-from datetime import datetime
-from typing import TYPE_CHECKING, Any, Dict, MutableMapping, Optional, Tuple, Union, cast
+from collections.abc import MutableMapping
+from typing import TYPE_CHECKING, Any, Optional, Union, cast
 from uuid import uuid4
 
 try:
@@ -29,6 +30,8 @@ try:
 except ImportError:
     CACHE_TOOLS_AVAILABLE = False
 
+
+import contextlib
 
 from telegram import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message, User
 from telegram._utils.datetime import to_float_timestamp
@@ -68,18 +71,24 @@ class InvalidCallbackData(TelegramError):
         )
         self.callback_data: Optional[str] = callback_data
 
-    def __reduce__(self) -> Tuple[type, Tuple[Optional[str]]]:  # type: ignore[override]
+    def __reduce__(self) -> tuple[type, tuple[Optional[str]]]:  # type: ignore[override]
+        """Defines how to serialize the exception for pickle. See
+        :py:meth:`object.__reduce__` for more info.
+
+        Returns:
+            :obj:`tuple`
+        """
         return self.__class__, (self.callback_data,)
 
 
 class _KeyboardData:
-    __slots__ = ("keyboard_uuid", "button_data", "access_time")
+    __slots__ = ("access_time", "button_data", "keyboard_uuid")
 
     def __init__(
         self,
         keyboard_uuid: str,
         access_time: Optional[float] = None,
-        button_data: Optional[Dict[str, object]] = None,
+        button_data: Optional[dict[str, object]] = None,
     ):
         self.keyboard_uuid = keyboard_uuid
         self.button_data = button_data or {}
@@ -89,7 +98,7 @@ class _KeyboardData:
         """Updates the access time with the current time."""
         self.access_time = time.time()
 
-    def to_tuple(self) -> Tuple[str, float, Dict[str, object]]:
+    def to_tuple(self) -> tuple[str, float, dict[str, object]]:
         """Gives a tuple representation consisting of the keyboard uuid, the access time and the
         button data.
         """
@@ -132,8 +141,8 @@ class CallbackDataCache:
         maxsize (:obj:`int`, optional): Maximum number of items in each of the internal mappings.
             Defaults to ``1024``.
 
-        persistent_data (Tuple[List[Tuple[:obj:`str`, :obj:`float`, \
-        Dict[:obj:`str`, :class:`object`]]], Dict[:obj:`str`, :obj:`str`]], optional): \
+        persistent_data (tuple[list[tuple[:obj:`str`, :obj:`float`, \
+        dict[:obj:`str`, :class:`object`]]], dict[:obj:`str`, :obj:`str`]], optional): \
         Data to initialize the cache with, as returned by \
         :meth:`telegram.ext.BasePersistence.get_callback_data`.
 
@@ -142,7 +151,7 @@ class CallbackDataCache:
 
     """
 
-    __slots__ = ("bot", "_maxsize", "_keyboard_data", "_callback_queries")
+    __slots__ = ("_callback_queries", "_keyboard_data", "_maxsize", "bot")
 
     def __init__(
         self,
@@ -173,8 +182,8 @@ class CallbackDataCache:
         .. versionadded:: 20.0
 
         Args:
-            persistent_data (Tuple[List[Tuple[:obj:`str`, :obj:`float`, \
-            Dict[:obj:`str`, :class:`object`]]], Dict[:obj:`str`, :obj:`str`]], optional): \
+            persistent_data (tuple[list[tuple[:obj:`str`, :obj:`float`, \
+            dict[:obj:`str`, :class:`object`]]], dict[:obj:`str`, :obj:`str`]], optional): \
             Data to load, as returned by \
             :meth:`telegram.ext.BasePersistence.get_callback_data`.
         """
@@ -197,8 +206,8 @@ class CallbackDataCache:
 
     @property
     def persistence_data(self) -> CDCData:
-        """Tuple[List[Tuple[:obj:`str`, :obj:`float`, Dict[:obj:`str`, :class:`object`]]],
-        Dict[:obj:`str`, :obj:`str`]]: The data that needs to be persisted to allow
+        """tuple[list[tuple[:obj:`str`, :obj:`float`, dict[:obj:`str`, :class:`object`]]],
+        dict[:obj:`str`, :obj:`str`]]: The data that needs to be persisted to allow
         caching callback data across bot reboots.
         """
         # While building a list/dict from the LRUCaches has linear runtime (in the number of
@@ -261,7 +270,7 @@ class CallbackDataCache:
 
     def __get_keyboard_uuid_and_button_data(
         self, callback_data: str
-    ) -> Union[Tuple[str, object], Tuple[None, InvalidCallbackData]]:
+    ) -> Union[tuple[str, object], tuple[None, InvalidCallbackData]]:
         keyboard, button = self.extract_uuids(callback_data)
         try:
             # we get the values before calling update() in case KeyErrors are raised
@@ -270,12 +279,12 @@ class CallbackDataCache:
             button_data = keyboard_data.button_data[button]
             # Update the timestamp for the LRU
             keyboard_data.update_access_time()
-            return keyboard, button_data
         except KeyError:
             return None, InvalidCallbackData(callback_data)
+        return keyboard, button_data
 
     @staticmethod
-    def extract_uuids(callback_data: str) -> Tuple[str, str]:
+    def extract_uuids(callback_data: str) -> tuple[str, str]:
         """Extracts the keyboard uuid and the button uuid from the given :paramref:`callback_data`.
 
         Args:
@@ -389,14 +398,14 @@ class CallbackDataCache:
 
         # Get the cached callback data for the inline keyboard attached to the
         # CallbackQuery.
-        if callback_query.message:
+        if isinstance(callback_query.message, Message):
             self.__process_message(callback_query.message)
-            for message in (
+            for maybe_message in (
                 callback_query.message.pinned_message,
                 callback_query.message.reply_to_message,
             ):
-                if message:
-                    self.__process_message(message)
+                if isinstance(maybe_message, Message):
+                    self.__process_message(maybe_message)
 
     def drop_data(self, callback_query: CallbackQuery) -> None:
         """Deletes the data for the specified callback query.
@@ -419,20 +428,18 @@ class CallbackDataCache:
             raise KeyError("CallbackQuery was not found in cache.") from exc
 
     def __drop_keyboard(self, keyboard_uuid: str) -> None:
-        try:
+        with contextlib.suppress(KeyError):
             self._keyboard_data.pop(keyboard_uuid)
-        except KeyError:
-            return
 
-    def clear_callback_data(self, time_cutoff: Optional[Union[float, datetime]] = None) -> None:
+    def clear_callback_data(
+        self, time_cutoff: Optional[Union[float, dtm.datetime]] = None
+    ) -> None:
         """Clears the stored callback data.
 
         Args:
             time_cutoff (:obj:`float` | :obj:`datetime.datetime`, optional): Pass a UNIX timestamp
                 or a :obj:`datetime.datetime` to clear only entries which are older.
-                For timezone naive :obj:`datetime.datetime` objects, the default timezone of the
-                bot will be used, which is UTC unless :attr:`telegram.ext.Defaults.tzinfo` is
-                used.
+                |tz-naive-dtms|
 
         """
         self.__clear(self._keyboard_data, time_cutoff=time_cutoff)
@@ -442,13 +449,13 @@ class CallbackDataCache:
         self.__clear(self._callback_queries)
 
     def __clear(
-        self, mapping: MutableMapping, time_cutoff: Optional[Union[float, datetime]] = None
+        self, mapping: MutableMapping, time_cutoff: Optional[Union[float, dtm.datetime]] = None
     ) -> None:
         if not time_cutoff:
             mapping.clear()
             return
 
-        if isinstance(time_cutoff, datetime):
+        if isinstance(time_cutoff, dtm.datetime):
             effective_cutoff = to_float_timestamp(
                 time_cutoff, tzinfo=self.bot.defaults.tzinfo if self.bot.defaults else None
             )

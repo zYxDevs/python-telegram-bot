@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 #
 # A library that provides a Python interface to the Telegram Bot API
-# Copyright (C) 2015-2023
+# Copyright (C) 2015-2025
 # Leandro Toledo de Souza <devs@python-telegram-bot.org>
 #
 # This program is free software: you can redistribute it and/or modify
@@ -25,19 +25,19 @@ from tests.auxil.slots import mro_slots
 @pytest.fixture(scope="module")
 def inline_query_results_button():
     return InlineQueryResultsButton(
-        text=TestInlineQueryResultsButtonBase.text,
-        start_parameter=TestInlineQueryResultsButtonBase.start_parameter,
-        web_app=TestInlineQueryResultsButtonBase.web_app,
+        text=InlineQueryResultsButtonTestBase.text,
+        start_parameter=InlineQueryResultsButtonTestBase.start_parameter,
+        web_app=InlineQueryResultsButtonTestBase.web_app,
     )
 
 
-class TestInlineQueryResultsButtonBase:
+class InlineQueryResultsButtonTestBase:
     text = "text"
     start_parameter = "start_parameter"
     web_app = WebAppInfo(url="https://python-telegram-bot.org")
 
 
-class TestInlineQueryResultsButtonWithoutRequest(TestInlineQueryResultsButtonBase):
+class TestInlineQueryResultsButtonWithoutRequest(InlineQueryResultsButtonTestBase):
     def test_slot_behaviour(self, inline_query_results_button):
         inst = inline_query_results_button
         for attr in inst.__slots__:
@@ -51,16 +51,14 @@ class TestInlineQueryResultsButtonWithoutRequest(TestInlineQueryResultsButtonBas
         assert inline_query_results_button_dict["start_parameter"] == self.start_parameter
         assert inline_query_results_button_dict["web_app"] == self.web_app.to_dict()
 
-    def test_de_json(self, bot):
-        assert InlineQueryResultsButton.de_json(None, bot) is None
-        assert InlineQueryResultsButton.de_json({}, bot) is None
+    def test_de_json(self, offline_bot):
 
         json_dict = {
             "text": self.text,
             "start_parameter": self.start_parameter,
             "web_app": self.web_app.to_dict(),
         }
-        inline_query_results_button = InlineQueryResultsButton.de_json(json_dict, bot)
+        inline_query_results_button = InlineQueryResultsButton.de_json(json_dict, offline_bot)
 
         assert inline_query_results_button.text == self.text
         assert inline_query_results_button.start_parameter == self.start_parameter

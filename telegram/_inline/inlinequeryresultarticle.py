@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 #
 # A library that provides a Python interface to the Telegram Bot API
-# Copyright (C) 2015-2023
+# Copyright (C) 2015-2025
 # Leandro Toledo de Souza <devs@python-telegram-bot.org>
 #
 # This program is free software: you can redistribute it and/or modify
@@ -38,6 +38,9 @@ class InlineQueryResultArticle(InlineQueryResult):
     .. versionchanged:: 20.5
       Removed the deprecated arguments and attributes ``thumb_*``.
 
+    .. versionchanged:: NEXT.VERSION
+        Removed the deprecated argument and attribute ``hide_url``.
+
     Args:
         id (:obj:`str`): Unique identifier for this result,
             :tg-const:`telegram.InlineQueryResult.MIN_ID_LENGTH`-
@@ -48,8 +51,9 @@ class InlineQueryResultArticle(InlineQueryResult):
         reply_markup (:class:`telegram.InlineKeyboardMarkup`, optional): Inline keyboard attached
             to the message.
         url (:obj:`str`, optional): URL of the result.
-        hide_url (:obj:`bool`, optional): Pass :obj:`True`, if you don't want the URL to be shown
-            in the message.
+
+            Tip:
+                Pass an empty string as URL if you don't want the URL to be shown in the message.
         description (:obj:`str`, optional): Short description of the result.
         thumbnail_url (:obj:`str`, optional): Url of the thumbnail for the result.
 
@@ -72,8 +76,6 @@ class InlineQueryResultArticle(InlineQueryResult):
         reply_markup (:class:`telegram.InlineKeyboardMarkup`): Optional. Inline keyboard attached
             to the message.
         url (:obj:`str`): Optional. URL of the result.
-        hide_url (:obj:`bool`): Optional. Pass :obj:`True`, if you don't want the URL to be shown
-            in the message.
         description (:obj:`str`): Optional. Short description of the result.
         thumbnail_url (:obj:`str`): Optional. Url of the thumbnail for the result.
 
@@ -88,15 +90,14 @@ class InlineQueryResultArticle(InlineQueryResult):
     """
 
     __slots__ = (
-        "reply_markup",
-        "hide_url",
-        "url",
-        "title",
         "description",
         "input_message_content",
-        "thumbnail_width",
+        "reply_markup",
         "thumbnail_height",
         "thumbnail_url",
+        "thumbnail_width",
+        "title",
+        "url",
     )
 
     def __init__(
@@ -106,7 +107,6 @@ class InlineQueryResultArticle(InlineQueryResult):
         input_message_content: "InputMessageContent",
         reply_markup: Optional[InlineKeyboardMarkup] = None,
         url: Optional[str] = None,
-        hide_url: Optional[bool] = None,
         description: Optional[str] = None,
         thumbnail_url: Optional[str] = None,
         thumbnail_width: Optional[int] = None,
@@ -123,7 +123,6 @@ class InlineQueryResultArticle(InlineQueryResult):
             # Optional
             self.reply_markup: Optional[InlineKeyboardMarkup] = reply_markup
             self.url: Optional[str] = url
-            self.hide_url: Optional[bool] = hide_url
             self.description: Optional[str] = description
             self.thumbnail_url: Optional[str] = thumbnail_url
             self.thumbnail_width: Optional[int] = thumbnail_width

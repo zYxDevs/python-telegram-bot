@@ -8,12 +8,12 @@ from pathlib import Path
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 from sphinx.application import Sphinx
 
-sys.path.insert(0, os.path.abspath("../.."))
+sys.path.insert(0, str(Path("../..").resolve().absolute()))
 
 # -- General configuration ------------------------------------------------
 # General information about the project.
 project = "python-telegram-bot"
-copyright = "2015-2023, Leandro Toledo"
+copyright = "2015-2025, Leandro Toledo"
 author = "Leandro Toledo"
 
 # The version info for the project you're documenting, acts as replacement for
@@ -21,12 +21,16 @@ author = "Leandro Toledo"
 # built documents.
 #
 # The short X.Y version.
-version = "20.5"  # telegram.__version__[:3]
+
+# Import needs to be below the sys.path.insert above
+import telegram  # noqa: E402
+
+version = telegram.__version__
 # The full version, including alpha/beta/rc tags.
-release = "20.5"  # telegram.__version__
+release = telegram.__version__
 
 # If your documentation needs a minimal Sphinx version, state it here.
-needs_sphinx = "6.1.3"
+needs_sphinx = "8.1.3"
 
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
@@ -43,6 +47,10 @@ extensions = [
     "sphinxcontrib.mermaid",
     "sphinx_search.extension",
 ]
+
+# Temporary. See #4387
+if os.environ.get("READTHEDOCS", "") == "True":
+    extensions.append("sphinx_build_compatibility.extension")
 
 # For shorter links to Wiki in docstrings
 extlinks = {
@@ -68,7 +76,9 @@ source_suffix = ".rst"
 master_doc = "index"
 
 # Global substitutions
-rst_prolog = (Path.cwd() / "../substitutions/global.rst").read_text(encoding="utf-8")
+rst_prolog = ""
+for file in Path.cwd().glob("../substitutions/*.rst"):
+    rst_prolog += "\n" + file.read_text(encoding="utf-8")
 
 # -- Extension settings ------------------------------------------------
 napoleon_use_admonition_for_examples = True
@@ -76,6 +86,14 @@ napoleon_use_admonition_for_examples = True
 # Don't show type hints in the signature - that just makes it hardly readable
 # and we document the types anyway
 autodoc_typehints = "none"
+
+# Show docstring for special members
+autodoc_default_options = {
+    "special-members": True,
+    # For some reason, __weakref__ can not be ignored by using "inherited-members" in all cases
+    # so we list it here.
+    "exclude-members": "__init__, __weakref__",
+}
 
 # Fail on warnings & unresolved references etc
 nitpicky = True
@@ -133,12 +151,6 @@ html_theme_options = {
         "admonition-title-font-size": "0.95rem",
         "admonition-font-size": "0.92rem",
     },
-    "announcement": (
-        "PTB has undergone significant changes in v20. Please read the documentation "
-        "carefully and also check out the transition guide in the "
-        '<a href="https://github.com/python-telegram-bot/python-telegram-bot/wiki/'
-        'Transition-guide-to-Version-20.0">wiki</a>.'
-    ),
     "footer_icons": [
         {
             # Telegram channel logo
@@ -244,7 +256,14 @@ htmlhelp_basename = "python-telegram-bot-doc"
 
 # The base URL which points to the root of the HTML documentation. It is used to indicate the
 # location of document using The Canonical Link Relation. Default: ''.
-html_baseurl = "https://docs.python-telegram-bot.org"
+# Set canonical URL from the Read the Docs Domain
+html_baseurl = os.environ.get("READTHEDOCS_CANONICAL_URL", "")
+
+# Tell Jinja2 templates the build is running on Read the Docs
+html_context = {}
+if os.environ.get("READTHEDOCS", "") == "True":
+    html_context["READTHEDOCS"] = True
+
 
 # -- Options for LaTeX output ---------------------------------------------
 
@@ -302,17 +321,20 @@ texinfo_documents = [
 # Due to Sphinx behaviour, these imports only work when imported here, not at top of module.
 
 # Not used but must be imported for the linkcode extension to find it
-from docs.auxil.link_code import linkcode_resolve
-from docs.auxil.sphinx_hooks import (
+from docs.auxil.link_code import linkcode_resolve  # noqa: E402, F401
+from docs.auxil.sphinx_hooks import (  # noqa: E402
     autodoc_process_bases,
     autodoc_process_docstring,
     autodoc_skip_member,
 )
-from docs.auxil.tg_const_role import CONSTANTS_ROLE, TGConstXRefRole
+from docs.auxil.tg_const_role import CONSTANTS_ROLE, TGConstXRefRole  # noqa: E402
 
 
 def setup(app: Sphinx):
     app.connect("autodoc-skip-member", autodoc_skip_member)
     app.connect("autodoc-process-bases", autodoc_process_bases)
-    app.connect("autodoc-process-docstring", autodoc_process_docstring)
+    # The default priority is 500. We want our function to run before napoleon doc-conversion
+    # and sphinx-paramlinks do, b/c otherwise the inserted kwargs in the bot methods won't show
+    # up in the objects.inv file that Sphinx generates (i.e. not in the search).
+    app.connect("autodoc-process-docstring", autodoc_process_docstring, priority=100)
     app.add_role_to_domain("py", CONSTANTS_ROLE, TGConstXRefRole())

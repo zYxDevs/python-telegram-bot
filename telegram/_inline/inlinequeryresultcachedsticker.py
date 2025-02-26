@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 #
 # A library that provides a Python interface to the Telegram Bot API
-# Copyright (C) 2015-2023
+# Copyright (C) 2015-2025
 # Leandro Toledo de Souza <devs@python-telegram-bot.org>
 #
 # This program is free software: you can redistribute it and/or modify
@@ -60,7 +60,7 @@ class InlineQueryResultCachedSticker(InlineQueryResult):
 
     """
 
-    __slots__ = ("reply_markup", "input_message_content", "sticker_file_id")
+    __slots__ = ("input_message_content", "reply_markup", "sticker_file_id")
 
     def __init__(
         self,

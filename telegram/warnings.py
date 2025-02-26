@@ -1,6 +1,6 @@
 #! /usr/bin/env python
 # A library that provides a Python interface to the Telegram Bot API
-# Copyright (C) 2015-2023
+# Copyright (C) 2015-2025
 # Leandro Toledo de Souza <devs@python-telegram-bot.org>
 #
 # This program is free software: you can redistribute it and/or modify
@@ -54,6 +54,34 @@ class PTBDeprecationWarning(PTBUserWarning, DeprecationWarning):
 
     .. versionchanged:: 20.0
        Renamed TelegramDeprecationWarning to PTBDeprecationWarning.
+
+    Args:
+        version (:obj:`str`): The version in which the feature was deprecated.
+
+            .. versionadded:: 21.2
+        message (:obj:`str`): The message to display.
+
+            .. versionadded:: 21.2
+
+    Attributes:
+        version (:obj:`str`): The version in which the feature was deprecated.
+
+            .. versionadded:: 21.2
+        message (:obj:`str`): The message to display.
+
+            .. versionadded:: 21.2
     """
 
-    __slots__ = ()
+    __slots__ = ("message", "version")
+
+    def __init__(self, version: str, message: str) -> None:
+        self.version: str = version
+        self.message: str = message
+
+    def __str__(self) -> str:
+        """Returns a string representation of the warning, using :attr:`message` and
+        :attr:`version`.
+
+        .. versionadded:: 21.2
+        """
+        return f"Deprecated since version {self.version}: {self.message}"

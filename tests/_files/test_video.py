@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 #
 # A library that provides a Python interface to the Telegram Bot API
-# Copyright (C) 2015-2023
+# Copyright (C) 2015-2025
 # Leandro Toledo de Souza <devs@python-telegram-bot.org>
 #
 # This program is free software: you can redistribute it and/or modify
@@ -17,12 +17,14 @@
 # You should have received a copy of the GNU Lesser Public License
 # along with this program.  If not, see [http://www.gnu.org/licenses/].
 import asyncio
+import datetime as dtm
 import os
 from pathlib import Path
 
 import pytest
 
-from telegram import Bot, InputFile, MessageEntity, PhotoSize, Video, Voice
+from telegram import Bot, InputFile, MessageEntity, PhotoSize, ReplyParameters, Video, Voice
+from telegram.constants import ParseMode
 from telegram.error import BadRequest, TelegramError
 from telegram.helpers import escape_markdown
 from telegram.request import RequestData
@@ -31,23 +33,12 @@ from tests.auxil.bot_method_checks import (
     check_shortcut_call,
     check_shortcut_signature,
 )
+from tests.auxil.build_messages import make_message
 from tests.auxil.files import data_file
 from tests.auxil.slots import mro_slots
 
 
-@pytest.fixture()
-def video_file():
-    with data_file("telegram.mp4").open("rb") as f:
-        yield f
-
-
-@pytest.fixture(scope="module")
-async def video(bot, chat_id):
-    with data_file("telegram.mp4").open("rb") as f:
-        return (await bot.send_video(chat_id, video=f, read_timeout=50)).video
-
-
-class TestVideoBase:
+class VideoTestBase:
     width = 360
     height = 640
     duration = 5
@@ -64,7 +55,7 @@ class TestVideoBase:
     video_file_unique_id = "adc3145fd2e84d95b64d68eaa22aa33e"
 
 
-class TestVideoWithoutRequest(TestVideoBase):
+class TestVideoWithoutRequest(VideoTestBase):
     def test_slot_behaviour(self, video):
         for attr in video.__slots__:
             assert getattr(video, attr, "err") != "err", f"got extra slot '{attr}'"
@@ -91,7 +82,7 @@ class TestVideoWithoutRequest(TestVideoBase):
         assert video.file_size == self.file_size
         assert video.mime_type == self.mime_type
 
-    def test_de_json(self, bot):
+    def test_de_json(self, offline_bot):
         json_dict = {
             "file_id": self.video_file_id,
             "file_unique_id": self.video_file_unique_id,
@@ -102,7 +93,7 @@ class TestVideoWithoutRequest(TestVideoBase):
             "file_size": self.file_size,
             "file_name": self.file_name,
         }
-        json_video = Video.de_json(json_dict, bot)
+        json_video = Video.de_json(json_dict, offline_bot)
         assert json_video.api_kwargs == {}
 
         assert json_video.file_id == self.video_file_id
@@ -147,30 +138,32 @@ class TestVideoWithoutRequest(TestVideoBase):
         assert a != e
         assert hash(a) != hash(e)
 
-    async def test_error_without_required_args(self, bot, chat_id):
+    async def test_error_without_required_args(self, offline_bot, chat_id):
         with pytest.raises(TypeError):
-            await bot.send_video(chat_id=chat_id)
+            await offline_bot.send_video(chat_id=chat_id)
 
-    async def test_send_with_video(self, monkeypatch, bot, chat_id, video):
+    async def test_send_with_video(self, monkeypatch, offline_bot, chat_id, video):
         async def make_assertion(url, request_data: RequestData, *args, **kwargs):
             return request_data.json_parameters["video"] == video.file_id
 
-        monkeypatch.setattr(bot.request, "post", make_assertion)
-        assert await bot.send_video(chat_id, video=video)
+        monkeypatch.setattr(offline_bot.request, "post", make_assertion)
+        assert await offline_bot.send_video(chat_id, video=video)
 
-    async def test_send_video_custom_filename(self, bot, chat_id, video_file, monkeypatch):
+    async def test_send_video_custom_filename(self, offline_bot, chat_id, video_file, monkeypatch):
         async def make_assertion(url, request_data: RequestData, *args, **kwargs):
             return next(iter(request_data.multipart_data.values()))[0] == "custom_filename"
 
-        monkeypatch.setattr(bot.request, "post", make_assertion)
+        monkeypatch.setattr(offline_bot.request, "post", make_assertion)
 
-        assert await bot.send_video(chat_id, video_file, filename="custom_filename")
+        assert await offline_bot.send_video(chat_id, video_file, filename="custom_filename")
 
     @pytest.mark.parametrize("local_mode", [True, False])
-    async def test_send_video_local_files(self, monkeypatch, bot, chat_id, local_mode):
+    async def test_send_video_local_files(
+        self, dummy_message_dict, monkeypatch, offline_bot, chat_id, local_mode
+    ):
         try:
-            bot._local_mode = local_mode
-            # For just test that the correct paths are passed as we have no local bot API set up
+            offline_bot._local_mode = local_mode
+            # For just test that the correct paths are passed as we have no local Bot API set up
             test_flag = False
             file = data_file("telegram.jpg")
             expected = file.as_uri()
@@ -183,12 +176,13 @@ class TestVideoWithoutRequest(TestVideoBase):
                     test_flag = isinstance(data.get("video"), InputFile) and isinstance(
                         data.get("thumbnail"), InputFile
                     )
+                return dummy_message_dict
 
-            monkeypatch.setattr(bot, "_post", make_assertion)
-            await bot.send_video(chat_id, file, thumbnail=file)
+            monkeypatch.setattr(offline_bot, "_post", make_assertion)
+            await offline_bot.send_video(chat_id, file, thumbnail=file)
             assert test_flag
         finally:
-            bot._local_mode = False
+            offline_bot._local_mode = False
 
     async def test_get_file_instance_method(self, monkeypatch, video):
         async def make_assertion(*_, **kwargs):
@@ -201,13 +195,39 @@ class TestVideoWithoutRequest(TestVideoBase):
         monkeypatch.setattr(video.get_bot(), "get_file", make_assertion)
         assert await video.get_file()
 
+    @pytest.mark.parametrize(
+        ("default_bot", "custom"),
+        [
+            ({"parse_mode": ParseMode.HTML}, None),
+            ({"parse_mode": ParseMode.HTML}, ParseMode.MARKDOWN_V2),
+            ({"parse_mode": None}, ParseMode.MARKDOWN_V2),
+        ],
+        indirect=["default_bot"],
+    )
+    async def test_send_video_default_quote_parse_mode(
+        self, default_bot, chat_id, video, custom, monkeypatch
+    ):
+        async def make_assertion(url, request_data: RequestData, *args, **kwargs):
+            assert request_data.parameters["reply_parameters"].get("quote_parse_mode") == (
+                custom or default_bot.defaults.quote_parse_mode
+            )
+            return make_message("dummy reply").to_dict()
 
-class TestVideoWithRequest(TestVideoBase):
-    async def test_send_all_args(self, bot, chat_id, video_file, video, thumb_file):
+        kwargs = {"message_id": 1}
+        if custom is not None:
+            kwargs["quote_parse_mode"] = custom
+
+        monkeypatch.setattr(default_bot.request, "post", make_assertion)
+        await default_bot.send_video(chat_id, video, reply_parameters=ReplyParameters(**kwargs))
+
+
+class TestVideoWithRequest(VideoTestBase):
+    @pytest.mark.parametrize("duration", [dtm.timedelta(seconds=5), 5])
+    async def test_send_all_args(self, bot, chat_id, video_file, video, thumb_file, duration):
         message = await bot.send_video(
             chat_id,
             video_file,
-            duration=self.duration,
+            duration=duration,
             caption=self.caption,
             supports_streaming=self.supports_streaming,
             disable_notification=False,
@@ -217,6 +237,7 @@ class TestVideoWithRequest(TestVideoBase):
             parse_mode="Markdown",
             thumbnail=thumb_file,
             has_spoiler=True,
+            show_caption_above_media=True,
         )
 
         assert isinstance(message.video, Video)
@@ -238,6 +259,7 @@ class TestVideoWithRequest(TestVideoBase):
         assert message.video.file_name == self.file_name
         assert message.has_protected_content
         assert message.has_media_spoiler
+        assert message.show_caption_above_media
 
     async def test_get_and_download(self, bot, video, chat_id, tmp_file):
         new_file = await bot.get_file(video.file_id)
@@ -359,7 +381,7 @@ class TestVideoWithRequest(TestVideoBase):
             )
             assert message.reply_to_message is None
         else:
-            with pytest.raises(BadRequest, match="message not found"):
+            with pytest.raises(BadRequest, match="Message to be replied not found"):
                 await default_bot.send_video(
                     chat_id, video, reply_to_message_id=reply_to_message.message_id
                 )

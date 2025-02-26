@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 #
 # A library that provides a Python interface to the Telegram Bot API
-# Copyright (C) 2015-2023
+# Copyright (C) 2015-2025
 # Leandro Toledo de Souza <devs@python-telegram-bot.org>
 #
 # This program is free software: you can redistribute it and/or modify
@@ -17,7 +17,8 @@
 # You should have received a copy of the GNU Lesser Public License
 # along with this program.  If not, see [http://www.gnu.org/licenses/].
 """This module contains the classes that represent Telegram InlineQueryResultVideo."""
-from typing import TYPE_CHECKING, Optional, Sequence, Tuple
+from collections.abc import Sequence
+from typing import TYPE_CHECKING, Optional
 
 from telegram._inline.inlinekeyboardmarkup import InlineKeyboardMarkup
 from telegram._inline.inlinequeryresult import InlineQueryResult
@@ -55,20 +56,12 @@ class InlineQueryResultVideo(InlineQueryResult):
         mime_type (:obj:`str`): Mime type of the content of video url, "text/html" or "video/mp4".
         thumbnail_url (:obj:`str`, optional): URL of the thumbnail (JPEG only) for the video.
 
-            Warning:
-                The Bot API does **not** define this as an optional argument. It is formally
-                optional for backwards compatibility with the deprecated :paramref:`thumb_url`.
-                If you pass neither :paramref:`thumbnail_url` nor :paramref:`thumb_url`,
-                :class:`ValueError` will be raised.
-
             .. versionadded:: 20.2
-        title (:obj:`str`, optional): Title for the result.
 
-            Warning:
-                The Bot API does **not** define this as an optional argument. It is formally
-                optional to ensure backwards compatibility of :paramref:`thumbnail_url` with the
-                deprecated :paramref:`thumb_url`, which required that :paramref:`thumbnail_url`
-                become optional. :class:`TypeError` will be raised if no ``title`` is passed.
+            ..versionchanged:: 20.5
+              |thumbnail_url_mandatory|
+
+        title (:obj:`str`): Title for the result.
         caption (:obj:`str`, optional): Caption of the video to be sent,
             0-:tg-const:`telegram.constants.MessageLimit.CAPTION_LENGTH` characters after entities
             parsing.
@@ -88,11 +81,9 @@ class InlineQueryResultVideo(InlineQueryResult):
             message to be sent instead of the video. This field is required if
             ``InlineQueryResultVideo`` is used to send an HTML-page as a result
             (e.g., a YouTube video).
+        show_caption_above_media (:obj:`bool`, optional): Pass |show_cap_above_med|
 
-    Raises:
-        :class:`ValueError`: If neither :paramref:`thumbnail_url` nor :paramref:`thumb_url` is
-            supplied or if both are supplied and are not equal.
-        :class:`TypeError`: If no :paramref:`title` is passed.
+            .. versionadded:: 21.3
 
     Attributes:
         type (:obj:`str`): :tg-const:`telegram.constants.InlineQueryResultType.VIDEO`.
@@ -109,7 +100,7 @@ class InlineQueryResultVideo(InlineQueryResult):
             0-:tg-const:`telegram.constants.MessageLimit.CAPTION_LENGTH` characters after entities
             parsing.
         parse_mode (:obj:`str`): Optional. |parse_mode|
-        caption_entities (Tuple[:class:`telegram.MessageEntity`]): Optional.
+        caption_entities (tuple[:class:`telegram.MessageEntity`]): Optional.
             |captionentitiesattr|
 
             .. versionchanged:: 20.0
@@ -127,23 +118,27 @@ class InlineQueryResultVideo(InlineQueryResult):
             message to be sent instead of the video. This field is required if
             ``InlineQueryResultVideo`` is used to send an HTML-page as a result
             (e.g., a YouTube video).
+        show_caption_above_media (:obj:`bool`): Optional. |show_cap_above_med|
+
+            .. versionadded:: 21.3
 
     """
 
     __slots__ = (
-        "video_url",
-        "reply_markup",
-        "caption_entities",
         "caption",
-        "title",
+        "caption_entities",
         "description",
-        "video_duration",
-        "parse_mode",
-        "mime_type",
         "input_message_content",
-        "video_height",
-        "video_width",
+        "mime_type",
+        "parse_mode",
+        "reply_markup",
+        "show_caption_above_media",
         "thumbnail_url",
+        "title",
+        "video_duration",
+        "video_height",
+        "video_url",
+        "video_width",
     )
 
     def __init__(
@@ -162,6 +157,7 @@ class InlineQueryResultVideo(InlineQueryResult):
         input_message_content: Optional["InputMessageContent"] = None,
         parse_mode: ODVInput[str] = DEFAULT_NONE,
         caption_entities: Optional[Sequence[MessageEntity]] = None,
+        show_caption_above_media: Optional[bool] = None,
         *,
         api_kwargs: Optional[JSONDict] = None,
     ):
@@ -176,10 +172,11 @@ class InlineQueryResultVideo(InlineQueryResult):
             # Optional
             self.caption: Optional[str] = caption
             self.parse_mode: ODVInput[str] = parse_mode
-            self.caption_entities: Tuple[MessageEntity, ...] = parse_sequence_arg(caption_entities)
+            self.caption_entities: tuple[MessageEntity, ...] = parse_sequence_arg(caption_entities)
             self.video_width: Optional[int] = video_width
             self.video_height: Optional[int] = video_height
             self.video_duration: Optional[int] = video_duration
             self.description: Optional[str] = description
             self.reply_markup: Optional[InlineKeyboardMarkup] = reply_markup
             self.input_message_content: Optional[InputMessageContent] = input_message_content
+            self.show_caption_above_media: Optional[bool] = show_caption_above_media

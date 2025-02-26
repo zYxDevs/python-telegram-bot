@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 #
 # A library that provides a Python interface to the Telegram Bot API
-# Copyright (C) 2015-2023
+# Copyright (C) 2015-2025
 # Leandro Toledo de Souza <devs@python-telegram-bot.org>
 #
 # This program is free software: you can redistribute it and/or modify
@@ -18,23 +18,24 @@
 # along with this program.  If not, see [http://www.gnu.org/licenses/].
 """This module contains the Builder classes for the telegram.ext module."""
 from asyncio import Queue
+from collections.abc import Collection, Coroutine
 from pathlib import Path
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Callable,
-    Coroutine,
-    Dict,
-    Generic,
-    Optional,
-    Type,
-    TypeVar,
-    Union,
-)
+from typing import TYPE_CHECKING, Any, Callable, Generic, Optional, TypeVar, Union
+
+import httpx
 
 from telegram._bot import Bot
 from telegram._utils.defaultvalue import DEFAULT_FALSE, DEFAULT_NONE, DefaultValue
-from telegram._utils.types import DVInput, DVType, FilePathInput, HTTPVersion, ODVInput
+from telegram._utils.types import (
+    BaseUrl,
+    DVInput,
+    DVType,
+    FilePathInput,
+    HTTPVersion,
+    ODVInput,
+    SocketOpt,
+)
+from telegram._utils.warnings import warn
 from telegram.ext._application import Application
 from telegram.ext._baseupdateprocessor import BaseUpdateProcessor, SimpleUpdateProcessor
 from telegram.ext._contexttypes import ContextTypes
@@ -44,8 +45,10 @@ from telegram.ext._updater import Updater
 from telegram.ext._utils.types import BD, BT, CCT, CD, JQ, UD
 from telegram.request import BaseRequest
 from telegram.request._httpxrequest import HTTPXRequest
+from telegram.warnings import PTBDeprecationWarning
 
 if TYPE_CHECKING:
+    from telegram import Update
     from telegram.ext import BasePersistence, BaseRateLimiter, CallbackContext, Defaults
     from telegram.ext._utils.types import RLARGS
 
@@ -66,14 +69,17 @@ _BOT_CHECKS = [
     ("request", "request instance"),
     ("get_updates_request", "get_updates_request instance"),
     ("connection_pool_size", "connection_pool_size"),
-    ("proxy_url", "proxy_url"),
+    ("proxy", "proxy"),
+    ("socket_options", "socket_options"),
     ("pool_timeout", "pool_timeout"),
     ("connect_timeout", "connect_timeout"),
     ("read_timeout", "read_timeout"),
     ("write_timeout", "write_timeout"),
+    ("media_write_timeout", "media_write_timeout"),
     ("http_version", "http_version"),
     ("get_updates_connection_pool_size", "get_updates_connection_pool_size"),
-    ("get_updates_proxy_url", "get_updates_proxy_url"),
+    ("get_updates_proxy", "get_updates_proxy"),
+    ("get_updates_socket_options", "get_updates_socket_options"),
     ("get_updates_pool_timeout", "get_updates_pool_timeout"),
     ("get_updates_connect_timeout", "get_updates_connect_timeout"),
     ("get_updates_read_timeout", "get_updates_read_timeout"),
@@ -128,20 +134,23 @@ class ApplicationBuilder(Generic[BT, CCT, UD, CD, BD, JQ]):
         "_base_file_url",
         "_base_url",
         "_bot",
-        "_update_processor",
         "_connect_timeout",
         "_connection_pool_size",
         "_context_types",
         "_defaults",
         "_get_updates_connect_timeout",
         "_get_updates_connection_pool_size",
+        "_get_updates_http_version",
         "_get_updates_pool_timeout",
-        "_get_updates_proxy_url",
+        "_get_updates_proxy",
         "_get_updates_read_timeout",
         "_get_updates_request",
+        "_get_updates_socket_options",
         "_get_updates_write_timeout",
-        "_get_updates_http_version",
+        "_http_version",
         "_job_queue",
+        "_local_mode",
+        "_media_write_timeout",
         "_persistence",
         "_pool_timeout",
         "_post_init",
@@ -149,31 +158,34 @@ class ApplicationBuilder(Generic[BT, CCT, UD, CD, BD, JQ]):
         "_post_stop",
         "_private_key",
         "_private_key_password",
-        "_proxy_url",
+        "_proxy",
         "_rate_limiter",
         "_read_timeout",
         "_request",
+        "_socket_options",
         "_token",
+        "_update_processor",
         "_update_queue",
         "_updater",
         "_write_timeout",
-        "_local_mode",
-        "_http_version",
     )
 
     def __init__(self: "InitApplicationBuilder"):
         self._token: DVType[str] = DefaultValue("")
-        self._base_url: DVType[str] = DefaultValue("https://api.telegram.org/bot")
-        self._base_file_url: DVType[str] = DefaultValue("https://api.telegram.org/file/bot")
+        self._base_url: DVType[BaseUrl] = DefaultValue("https://api.telegram.org/bot")
+        self._base_file_url: DVType[BaseUrl] = DefaultValue("https://api.telegram.org/file/bot")
         self._connection_pool_size: DVInput[int] = DEFAULT_NONE
-        self._proxy_url: DVInput[str] = DEFAULT_NONE
+        self._proxy: DVInput[Union[str, httpx.Proxy, httpx.URL]] = DEFAULT_NONE
+        self._socket_options: DVInput[Collection[SocketOpt]] = DEFAULT_NONE
         self._connect_timeout: ODVInput[float] = DEFAULT_NONE
         self._read_timeout: ODVInput[float] = DEFAULT_NONE
         self._write_timeout: ODVInput[float] = DEFAULT_NONE
+        self._media_write_timeout: ODVInput[float] = DEFAULT_NONE
         self._pool_timeout: ODVInput[float] = DEFAULT_NONE
         self._request: DVInput[BaseRequest] = DEFAULT_NONE
         self._get_updates_connection_pool_size: DVInput[int] = DEFAULT_NONE
-        self._get_updates_proxy_url: DVInput[str] = DEFAULT_NONE
+        self._get_updates_proxy: DVInput[Union[str, httpx.Proxy, httpx.URL]] = DEFAULT_NONE
+        self._get_updates_socket_options: DVInput[Collection[SocketOpt]] = DEFAULT_NONE
         self._get_updates_connect_timeout: ODVInput[float] = DEFAULT_NONE
         self._get_updates_read_timeout: ODVInput[float] = DEFAULT_NONE
         self._get_updates_write_timeout: ODVInput[float] = DEFAULT_NONE
@@ -186,19 +198,19 @@ class ApplicationBuilder(Generic[BT, CCT, UD, CD, BD, JQ]):
         self._arbitrary_callback_data: Union[DefaultValue[bool], int] = DEFAULT_FALSE
         self._local_mode: DVType[bool] = DEFAULT_FALSE
         self._bot: DVInput[Bot] = DEFAULT_NONE
-        self._update_queue: DVType[Queue] = DefaultValue(Queue())
+        self._update_queue: DVType[Queue[Union[Update, object]]] = DefaultValue(Queue())
 
         try:
             self._job_queue: ODVInput[JobQueue] = DefaultValue(JobQueue())
         except RuntimeError as exc:
             if "PTB must be installed via" not in str(exc):
-                raise exc
+                raise
             self._job_queue = DEFAULT_NONE
 
         self._persistence: ODVInput[BasePersistence] = DEFAULT_NONE
         self._context_types: DVType[ContextTypes] = DefaultValue(ContextTypes())
-        self._application_class: DVType[Type[Application]] = DefaultValue(Application)
-        self._application_kwargs: Dict[str, object] = {}
+        self._application_class: DVType[type[Application]] = DefaultValue(Application)
+        self._application_kwargs: dict[str, object] = {}
         self._update_processor: BaseUpdateProcessor = SimpleUpdateProcessor(
             max_concurrent_updates=1
         )
@@ -214,7 +226,8 @@ class ApplicationBuilder(Generic[BT, CCT, UD, CD, BD, JQ]):
         if not isinstance(getattr(self, f"{prefix}request"), DefaultValue):
             return getattr(self, f"{prefix}request")
 
-        proxy_url = DefaultValue.get_value(getattr(self, f"{prefix}proxy_url"))
+        proxy = DefaultValue.get_value(getattr(self, f"{prefix}proxy"))
+        socket_options = DefaultValue.get_value(getattr(self, f"{prefix}socket_options"))
         if get_updates:
             connection_pool_size = (
                 DefaultValue.get_value(getattr(self, f"{prefix}connection_pool_size")) or 1
@@ -230,6 +243,10 @@ class ApplicationBuilder(Generic[BT, CCT, UD, CD, BD, JQ]):
             "write_timeout": getattr(self, f"{prefix}write_timeout"),
             "pool_timeout": getattr(self, f"{prefix}pool_timeout"),
         }
+
+        if not get_updates:
+            timeouts["media_write_timeout"] = self._media_write_timeout
+
         # Get timeouts that were actually set-
         effective_timeouts = {
             key: value for key, value in timeouts.items() if not isinstance(value, DefaultValue)
@@ -239,8 +256,9 @@ class ApplicationBuilder(Generic[BT, CCT, UD, CD, BD, JQ]):
 
         return HTTPXRequest(
             connection_pool_size=connection_pool_size,
-            proxy_url=proxy_url,
+            proxy=proxy,
             http_version=http_version,  # type: ignore[arg-type]
+            socket_options=socket_options,
             **effective_timeouts,
         )
 
@@ -301,9 +319,7 @@ class ApplicationBuilder(Generic[BT, CCT, UD, CD, BD, JQ]):
             bot = self._updater.bot
             update_queue = self._updater.update_queue
 
-        application: Application[
-            BT, CCT, UD, CD, BD, JQ
-        ] = DefaultValue.get_value(  # pylint: disable=not-callable
+        application: Application[BT, CCT, UD, CD, BD, JQ] = DefaultValue.get_value(
             self._application_class
         )(
             bot=bot,
@@ -331,8 +347,8 @@ class ApplicationBuilder(Generic[BT, CCT, UD, CD, BD, JQ]):
 
     def application_class(
         self: BuilderType,
-        application_class: Type[Application[Any, Any, Any, Any, Any, Any]],
-        kwargs: Optional[Dict[str, object]] = None,
+        application_class: type[Application[Any, Any, Any, Any, Any, Any]],
+        kwargs: Optional[dict[str, object]] = None,
     ) -> BuilderType:
         """Sets a custom subclass instead of :class:`telegram.ext.Application`. The
         subclass's ``__init__`` should look like this
@@ -346,7 +362,7 @@ class ApplicationBuilder(Generic[BT, CCT, UD, CD, BD, JQ]):
 
         Args:
             application_class (:obj:`type`): A subclass of :class:`telegram.ext.Application`
-            kwargs (Dict[:obj:`str`, :obj:`object`], optional): Keyword arguments for the
+            kwargs (dict[:obj:`str`, :obj:`object`], optional): Keyword arguments for the
                 initialization. Defaults to an empty dict.
 
         Returns:
@@ -370,15 +386,19 @@ class ApplicationBuilder(Generic[BT, CCT, UD, CD, BD, JQ]):
         self._token = token
         return self
 
-    def base_url(self: BuilderType, base_url: str) -> BuilderType:
+    def base_url(self: BuilderType, base_url: BaseUrl) -> BuilderType:
         """Sets the base URL for :attr:`telegram.ext.Application.bot`. If not called,
         will default to ``'https://api.telegram.org/bot'``.
 
         .. seealso:: :paramref:`telegram.Bot.base_url`,
             :wiki:`Local Bot API Server <Local-Bot-API-Server>`, :meth:`base_file_url`
 
+        .. versionchanged:: NEXT.VERSION
+           Supports callable input and string formatting.
+
         Args:
-            base_url (:obj:`str`): The URL.
+            base_url (:obj:`str` | Callable[[:obj:`str`], :obj:`str`]): The URL or
+                input for the URL as accepted by :paramref:`telegram.Bot.base_url`.
 
         Returns:
             :class:`ApplicationBuilder`: The same builder with the updated argument.
@@ -388,15 +408,19 @@ class ApplicationBuilder(Generic[BT, CCT, UD, CD, BD, JQ]):
         self._base_url = base_url
         return self
 
-    def base_file_url(self: BuilderType, base_file_url: str) -> BuilderType:
+    def base_file_url(self: BuilderType, base_file_url: BaseUrl) -> BuilderType:
         """Sets the base file URL for :attr:`telegram.ext.Application.bot`. If not
         called, will default to ``'https://api.telegram.org/file/bot'``.
 
         .. seealso:: :paramref:`telegram.Bot.base_file_url`,
             :wiki:`Local Bot API Server <Local-Bot-API-Server>`, :meth:`base_url`
 
+        .. versionchanged:: NEXT.VERSION
+           Supports callable input and string formatting.
+
         Args:
-            base_file_url (:obj:`str`): The URL.
+            base_file_url (:obj:`str` | Callable[[:obj:`str`], :obj:`str`]): The URL or
+                input for the URL as accepted by :paramref:`telegram.Bot.base_file_url`.
 
         Returns:
             :class:`ApplicationBuilder`: The same builder with the updated argument.
@@ -410,17 +434,24 @@ class ApplicationBuilder(Generic[BT, CCT, UD, CD, BD, JQ]):
         prefix = "get_updates_" if get_updates else ""
         name = prefix + "request"
 
+        timeouts = ["connect_timeout", "read_timeout", "write_timeout", "pool_timeout"]
+        if not get_updates:
+            timeouts.append("media_write_timeout")
+
         # Code below tests if it's okay to set a Request object. Only okay if no other request args
         # or instances containing a Request were set previously
-        for attr in ("connect_timeout", "read_timeout", "write_timeout", "pool_timeout"):
+        for attr in timeouts:
             if not isinstance(getattr(self, f"_{prefix}{attr}"), DefaultValue):
                 raise RuntimeError(_TWO_ARGS_REQ.format(name, attr))
 
         if not isinstance(getattr(self, f"_{prefix}connection_pool_size"), DefaultValue):
             raise RuntimeError(_TWO_ARGS_REQ.format(name, "connection_pool_size"))
 
-        if not isinstance(getattr(self, f"_{prefix}proxy_url"), DefaultValue):
-            raise RuntimeError(_TWO_ARGS_REQ.format(name, "proxy_url"))
+        if not isinstance(getattr(self, f"_{prefix}proxy"), DefaultValue):
+            raise RuntimeError(_TWO_ARGS_REQ.format(name, "proxy"))
+
+        if not isinstance(getattr(self, f"_{prefix}socket_options"), DefaultValue):
+            raise RuntimeError(_TWO_ARGS_REQ.format(name, "socket_options"))
 
         if not isinstance(getattr(self, f"_{prefix}http_version"), DefaultValue):
             raise RuntimeError(_TWO_ARGS_REQ.format(name, "http_version"))
@@ -486,21 +517,66 @@ class ApplicationBuilder(Generic[BT, CCT, UD, CD, BD, JQ]):
         return self
 
     def proxy_url(self: BuilderType, proxy_url: str) -> BuilderType:
-        """Sets the proxy for the :paramref:`~telegram.request.HTTPXRequest.proxy_url`
-        parameter of :attr:`telegram.Bot.request`. Defaults to :obj:`None`.
+        """Legacy name for :meth:`proxy`, kept for backward compatibility.
 
+        .. seealso:: :meth:`get_updates_proxy`
 
-        .. seealso:: :meth:`get_updates_proxy_url`
+        .. deprecated:: 20.7
 
         Args:
-            proxy_url (:obj:`str`): The URL to the proxy server. See
-                :paramref:`telegram.request.HTTPXRequest.proxy_url` for more information.
+            proxy_url (:obj:`str` | ``httpx.Proxy`` | ``httpx.URL``): See
+                :paramref:`telegram.ext.ApplicationBuilder.proxy.proxy`.
 
         Returns:
             :class:`ApplicationBuilder`: The same builder with the updated argument.
         """
-        self._request_param_check(name="proxy_url", get_updates=False)
-        self._proxy_url = proxy_url
+        warn(
+            PTBDeprecationWarning(
+                "20.7",
+                "`ApplicationBuilder.proxy_url` is deprecated. Use `ApplicationBuilder.proxy` "
+                "instead.",
+            ),
+            stacklevel=2,
+        )
+        return self.proxy(proxy_url)
+
+    def proxy(self: BuilderType, proxy: Union[str, httpx.Proxy, httpx.URL]) -> BuilderType:
+        """Sets the proxy for the :paramref:`~telegram.request.HTTPXRequest.proxy`
+        parameter of :attr:`telegram.Bot.request`. Defaults to :obj:`None`.
+
+        .. seealso:: :meth:`get_updates_proxy`
+
+        .. versionadded:: 20.7
+
+        Args:
+            proxy (:obj:`str` | ``httpx.Proxy`` | ``httpx.URL``): The URL to a proxy
+                server, a ``httpx.Proxy`` object or a ``httpx.URL`` object. See
+                :paramref:`telegram.request.HTTPXRequest.proxy` for more information.
+
+        Returns:
+            :class:`ApplicationBuilder`: The same builder with the updated argument.
+        """
+        self._request_param_check(name="proxy", get_updates=False)
+        self._proxy = proxy
+        return self
+
+    def socket_options(self: BuilderType, socket_options: Collection[SocketOpt]) -> BuilderType:
+        """Sets the options for the :paramref:`~telegram.request.HTTPXRequest.socket_options`
+        parameter of :attr:`telegram.Bot.request`. Defaults to :obj:`None`.
+
+        .. seealso:: :meth:`get_updates_socket_options`
+
+        .. versionadded:: 20.7
+
+        Args:
+            socket_options (Collection[:obj:`tuple`], optional): Socket options. See
+                :paramref:`telegram.request.HTTPXRequest.socket_options` for more information.
+
+        Returns:
+            :class:`ApplicationBuilder`: The same builder with the updated argument.
+        """
+        self._request_param_check(name="socket_options", get_updates=False)
+        self._socket_options = socket_options
         return self
 
     def connect_timeout(self: BuilderType, connect_timeout: Optional[float]) -> BuilderType:
@@ -555,6 +631,26 @@ class ApplicationBuilder(Generic[BT, CCT, UD, CD, BD, JQ]):
         """
         self._request_param_check(name="write_timeout", get_updates=False)
         self._write_timeout = write_timeout
+        return self
+
+    def media_write_timeout(
+        self: BuilderType, media_write_timeout: Optional[float]
+    ) -> BuilderType:
+        """Sets the media write operation timeout for the
+        :paramref:`~telegram.request.HTTPXRequest.media_write_timeout` parameter of
+        :attr:`telegram.Bot.request`. Defaults to ``20``.
+
+        .. versionadded:: 21.0
+
+        Args:
+            media_write_timeout (:obj:`float`): See
+                :paramref:`telegram.request.HTTPXRequest.media_write_timeout` for more information.
+
+        Returns:
+            :class:`ApplicationBuilder`: The same builder with the updated argument.
+        """
+        self._request_param_check(name="media_write_timeout", get_updates=False)
+        self._media_write_timeout = media_write_timeout
         return self
 
     def pool_timeout(self: BuilderType, pool_timeout: Optional[float]) -> BuilderType:
@@ -655,21 +751,70 @@ class ApplicationBuilder(Generic[BT, CCT, UD, CD, BD, JQ]):
         return self
 
     def get_updates_proxy_url(self: BuilderType, get_updates_proxy_url: str) -> BuilderType:
-        """Sets the proxy for the :paramref:`telegram.request.HTTPXRequest.proxy_url`
-        parameter which is used for :meth:`telegram.Bot.get_updates`. Defaults to :obj:`None`.
+        """Legacy name for :meth:`get_updates_proxy`, kept for backward compatibility.
 
+        .. seealso:: :meth:`proxy`
 
-        .. seealso:: :meth:`proxy_url`
+        .. deprecated:: 20.7
 
         Args:
-            get_updates_proxy_url (:obj:`str`): The URL to the proxy server. See
-                :paramref:`telegram.request.HTTPXRequest.proxy_url` for more information.
+            get_updates_proxy_url (:obj:`str` | ``httpx.Proxy`` | ``httpx.URL``): See
+                :paramref:`telegram.ext.ApplicationBuilder.get_updates_proxy.get_updates_proxy`.
 
         Returns:
             :class:`ApplicationBuilder`: The same builder with the updated argument.
         """
-        self._request_param_check(name="proxy_url", get_updates=True)
-        self._get_updates_proxy_url = get_updates_proxy_url
+        warn(
+            PTBDeprecationWarning(
+                "20.7",
+                "`ApplicationBuilder.get_updates_proxy_url` is deprecated. Use "
+                "`ApplicationBuilder.get_updates_proxy` instead.",
+            ),
+            stacklevel=2,
+        )
+        return self.get_updates_proxy(get_updates_proxy_url)
+
+    def get_updates_proxy(
+        self: BuilderType, get_updates_proxy: Union[str, httpx.Proxy, httpx.URL]
+    ) -> BuilderType:
+        """Sets the proxy for the :paramref:`telegram.request.HTTPXRequest.proxy`
+        parameter which is used for :meth:`telegram.Bot.get_updates`. Defaults to :obj:`None`.
+
+        .. seealso:: :meth:`proxy`
+
+        .. versionadded:: 20.7
+
+        Args:
+            proxy (:obj:`str` | ``httpx.Proxy`` | ``httpx.URL``): The URL to a proxy server,
+                a ``httpx.Proxy`` object or a ``httpx.URL`` object. See
+                :paramref:`telegram.request.HTTPXRequest.proxy` for more information.
+
+        Returns:
+            :class:`ApplicationBuilder`: The same builder with the updated argument.
+        """
+        self._request_param_check(name="proxy", get_updates=True)
+        self._get_updates_proxy = get_updates_proxy
+        return self
+
+    def get_updates_socket_options(
+        self: BuilderType, get_updates_socket_options: Collection[SocketOpt]
+    ) -> BuilderType:
+        """Sets the options for the :paramref:`~telegram.request.HTTPXRequest.socket_options`
+        parameter of :paramref:`telegram.Bot.get_updates_request`. Defaults to :obj:`None`.
+
+        .. seealso:: :meth:`socket_options`
+
+        .. versionadded:: 20.7
+
+        Args:
+            get_updates_socket_options (Collection[:obj:`tuple`], optional): Socket options. See
+                :paramref:`telegram.request.HTTPXRequest.socket_options` for more information.
+
+        Returns:
+            :class:`ApplicationBuilder`: The same builder with the updated argument.
+        """
+        self._request_param_check(name="socket_options", get_updates=True)
+        self._get_updates_socket_options = get_updates_socket_options
         return self
 
     def get_updates_connect_timeout(
@@ -1196,7 +1341,13 @@ class ApplicationBuilder(Generic[BT, CCT, UD, CD, BD, JQ]):
 
         Tip:
             This can be used for custom stop logic that requires to await coroutines, e.g.
-            sending message to a chat before shutting down the bot
+            sending message to a chat before shutting down the bot.
+
+        Hint:
+            The callback will be called only, if :meth:`Application.stop` was indeed called
+            successfully. For example, if the application is stopped early by calling
+            :meth:`Application.stop_running` within :meth:`post_init`, then the set callback will
+            *not* be called.
 
         Example:
             .. code::
@@ -1251,9 +1402,9 @@ InitApplicationBuilder = (  # This is defined all the way down here so that its 
     ApplicationBuilder[  # by Pylance correctly.
         ExtBot[None],
         ContextTypes.DEFAULT_TYPE,
-        Dict[Any, Any],
-        Dict[Any, Any],
-        Dict[Any, Any],
+        dict[Any, Any],
+        dict[Any, Any],
+        dict[Any, Any],
         JobQueue[ContextTypes.DEFAULT_TYPE],
     ]
 )

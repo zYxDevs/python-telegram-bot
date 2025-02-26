@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 #
 # A library that provides a Python interface to the Telegram Bot API
-# Copyright (C) 2015-2023
+# Copyright (C) 2015-2025
 # Leandro Toledo de Souza <devs@python-telegram-bot.org>
 #
 # This program is free software: you can redistribute it and/or modify
@@ -42,7 +42,7 @@ class VideoNote(_BaseThumbedMedium):
             Can't be used to download or reuse the file.
         length (:obj:`int`): Video width and height (diameter of the video message) as defined
             by sender.
-        duration (:obj:`int`): Duration of the video in seconds as defined by sender.
+        duration (:obj:`int`): Duration of the video in seconds as defined by the sender.
         file_size (:obj:`int`, optional): File size in bytes.
         thumbnail (:class:`telegram.PhotoSize`, optional): Video thumbnail.
 
@@ -56,7 +56,7 @@ class VideoNote(_BaseThumbedMedium):
             Can't be used to download or reuse the file.
         length (:obj:`int`): Video width and height (diameter of the video message) as defined
             by sender.
-        duration (:obj:`int`): Duration of the video in seconds as defined by sender.
+        duration (:obj:`int`): Duration of the video in seconds as defined by the sender.
         file_size (:obj:`int`): Optional. File size in bytes.
         thumbnail (:class:`telegram.PhotoSize`): Optional. Video thumbnail.
 

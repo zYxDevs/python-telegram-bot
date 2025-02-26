@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 #
 # A library that provides a Python interface to the Telegram Bot API
-# Copyright (C) 2015-2023
+# Copyright (C) 2015-2025
 # Leandro Toledo de Souza <devs@python-telegram-bot.org>
 #
 # This program is free software: you can redistribute it and/or modify
@@ -17,7 +17,8 @@
 # You should have received a copy of the GNU Lesser Public License
 # along with this program.  If not, see [http://www.gnu.org/licenses/].
 """This module contains the classes that represent Telegram InlineQueryResultGif."""
-from typing import TYPE_CHECKING, Optional, Sequence, Tuple
+from collections.abc import Sequence
+from typing import TYPE_CHECKING, Optional
 
 from telegram._inline.inlinekeyboardmarkup import InlineKeyboardMarkup
 from telegram._inline.inlinequeryresult import InlineQueryResult
@@ -50,16 +51,14 @@ class InlineQueryResultGif(InlineQueryResult):
         gif_width (:obj:`int`, optional): Width of the GIF.
         gif_height (:obj:`int`, optional): Height of the GIF.
         gif_duration (:obj:`int`, optional): Duration of the GIF in seconds.
-        thumbnail_url (:obj:`str`, optional): URL of the static (JPEG or GIF) or animated (MPEG4)
+        thumbnail_url (:obj:`str`): URL of the static (JPEG or GIF) or animated (MPEG4)
             thumbnail for the result.
 
-            Warning:
-                The Bot API does **not** define this as an optional argument. It is formally
-                optional for backwards compatibility with the deprecated :paramref:`thumb_url`.
-                If you pass neither :paramref:`thumbnail_url` nor :paramref:`thumb_url`,
-                :class:`ValueError` will be raised.
-
             .. versionadded:: 20.2
+
+            ..versionchanged:: 20.5
+              |thumbnail_url_mandatory|
+
         thumbnail_mime_type (:obj:`str`, optional): MIME type of the thumbnail, must be one of
             ``'image/jpeg'``, ``'image/gif'``, or ``'video/mp4'``. Defaults to ``'image/jpeg'``.
 
@@ -78,10 +77,9 @@ class InlineQueryResultGif(InlineQueryResult):
             to the message.
         input_message_content (:class:`telegram.InputMessageContent`, optional): Content of the
             message to be sent instead of the GIF animation.
+        show_caption_above_media (:obj:`bool`, optional): Pass |show_cap_above_med|
 
-    Raises:
-        :class:`ValueError`: If neither :paramref:`thumbnail_url` nor :paramref:`thumb_url` is
-            supplied or if both are supplied and are not equal.
+            .. versionadded:: 21.3
 
     Attributes:
         type (:obj:`str`): :tg-const:`telegram.constants.InlineQueryResultType.GIF`.
@@ -105,7 +103,7 @@ class InlineQueryResultGif(InlineQueryResult):
             0-:tg-const:`telegram.constants.MessageLimit.CAPTION_LENGTH` characters
             after entities parsing.
         parse_mode (:obj:`str`): Optional. |parse_mode|
-        caption_entities (Tuple[:class:`telegram.MessageEntity`]): Optional. |captionentitiesattr|
+        caption_entities (tuple[:class:`telegram.MessageEntity`]): Optional. |captionentitiesattr|
 
             .. versionchanged:: 20.0
 
@@ -115,22 +113,26 @@ class InlineQueryResultGif(InlineQueryResult):
             to the message.
         input_message_content (:class:`telegram.InputMessageContent`): Optional. Content of the
             message to be sent instead of the GIF animation.
+        show_caption_above_media (:obj:`bool`): Optional. |show_cap_above_med|
+
+            .. versionadded:: 21.3
 
     """
 
     __slots__ = (
-        "reply_markup",
-        "gif_height",
-        "thumbnail_mime_type",
-        "caption_entities",
-        "gif_width",
-        "title",
         "caption",
-        "parse_mode",
+        "caption_entities",
         "gif_duration",
-        "input_message_content",
+        "gif_height",
         "gif_url",
+        "gif_width",
+        "input_message_content",
+        "parse_mode",
+        "reply_markup",
+        "show_caption_above_media",
+        "thumbnail_mime_type",
         "thumbnail_url",
+        "title",
     )
 
     def __init__(
@@ -148,6 +150,7 @@ class InlineQueryResultGif(InlineQueryResult):
         parse_mode: ODVInput[str] = DEFAULT_NONE,
         caption_entities: Optional[Sequence[MessageEntity]] = None,
         thumbnail_mime_type: Optional[str] = None,
+        show_caption_above_media: Optional[bool] = None,
         *,
         api_kwargs: Optional[JSONDict] = None,
     ):
@@ -164,7 +167,8 @@ class InlineQueryResultGif(InlineQueryResult):
             self.title: Optional[str] = title
             self.caption: Optional[str] = caption
             self.parse_mode: ODVInput[str] = parse_mode
-            self.caption_entities: Tuple[MessageEntity, ...] = parse_sequence_arg(caption_entities)
+            self.caption_entities: tuple[MessageEntity, ...] = parse_sequence_arg(caption_entities)
             self.reply_markup: Optional[InlineKeyboardMarkup] = reply_markup
             self.input_message_content: Optional[InputMessageContent] = input_message_content
             self.thumbnail_mime_type: Optional[str] = thumbnail_mime_type
+            self.show_caption_above_media: Optional[bool] = show_caption_above_media

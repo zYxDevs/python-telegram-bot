@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 #
 # A library that provides a Python interface to the Telegram Bot API
-# Copyright (C) 2015-2023
+# Copyright (C) 2015-2025
 # Leandro Toledo de Souza <devs@python-telegram-bot.org>
 #
 # This program is free software: you can redistribute it and/or modify
@@ -17,10 +17,14 @@
 # You should have received a copy of the GNU Lesser Public License
 # along with this program.  If not, see [http://www.gnu.org/licenses/].
 """This module contains the class Defaults, which allows passing default values to Application."""
-import datetime
-from typing import Any, Dict, NoReturn, Optional, final
+import datetime as dtm
+from typing import Any, NoReturn, Optional, final
 
+from telegram import LinkPreviewOptions
 from telegram._utils.datetime import UTC
+from telegram._utils.types import ODVInput
+from telegram._utils.warnings import warn
+from telegram.warnings import PTBDeprecationWarning
 
 
 @final
@@ -38,17 +42,28 @@ class Defaults:
         parse_mode (:obj:`str`, optional): |parse_mode|
         disable_notification (:obj:`bool`, optional): |disable_notification|
         disable_web_page_preview (:obj:`bool`, optional): Disables link previews for links in this
-            message.
-        allow_sending_without_reply (:obj:`bool`, optional): |allow_sending_without_reply|
-        quote (:obj:`bool`, optional): If set to :obj:`True`, the reply is sent as an actual reply
-            to the message. If ``reply_to_message_id`` is passed, this parameter will
-            be ignored. Default: :obj:`True` in group chats and :obj:`False` in private chats.
+            message. Mutually exclusive with :paramref:`link_preview_options`.
+
+            .. deprecated:: 20.8
+                Use :paramref:`link_preview_options` instead. This parameter will be removed in
+                future versions.
+
+        allow_sending_without_reply (:obj:`bool`, optional): |allow_sending_without_reply|.
+            Will be used for :attr:`telegram.ReplyParameters.allow_sending_without_reply`.
+        quote (:obj:`bool`, optional): |reply_quote|
+
+            .. deprecated:: 20.8
+                Use :paramref:`do_quote` instead. This parameter will be removed in future
+                versions.
         tzinfo (:class:`datetime.tzinfo`, optional): A timezone to be used for all date(time)
             inputs appearing throughout PTB, i.e. if a timezone naive date(time) object is passed
-            somewhere, it will be assumed to be in :paramref:`tzinfo`. If the
-            :class:`telegram.ext.JobQueue` is used, this must be a timezone provided
-            by the ``pytz`` module. Defaults to ``pytz.utc``, if available, and
+            somewhere, it will be assumed to be in :paramref:`tzinfo`. Defaults to
             :attr:`datetime.timezone.utc` otherwise.
+
+            .. deprecated:: 21.10
+                Support for ``pytz`` timezones is deprecated and will be removed in future
+                versions.
+
         block (:obj:`bool`, optional): Default setting for the :paramref:`BaseHandler.block`
             parameter
             of handlers and error handlers registered through :meth:`Application.add_handler` and
@@ -56,18 +71,64 @@ class Defaults:
         protect_content (:obj:`bool`, optional): |protect_content|
 
             .. versionadded:: 20.0
+        link_preview_options (:class:`telegram.LinkPreviewOptions`, optional):
+            Link preview generation options for all outgoing messages. Mutually exclusive with
+            :paramref:`disable_web_page_preview`.
+            This object is used for the corresponding parameter of
+            :meth:`telegram.Bot.send_message`, :meth:`telegram.Bot.edit_message_text`,
+            and :class:`telegram.InputTextMessageContent` if not specified. If a value is specified
+            for the corresponding parameter, only those parameters of
+            :class:`telegram.LinkPreviewOptions` will be overridden that are not
+            explicitly set.
+
+            Example:
+
+                .. code-block:: python
+
+                    from telegram import LinkPreviewOptions
+                    from telegram.ext import Defaults, ExtBot
+
+                    defaults = Defaults(
+                        link_preview_options=LinkPreviewOptions(show_above_text=True)
+                    )
+                    chat_id = 123
+
+                    async def main():
+                        async with ExtBot("Token", defaults=defaults) as bot:
+                            # The link preview will be shown above the text.
+                            await bot.send_message(chat_id, "https://python-telegram-bot.org")
+
+                            # The link preview will be shown below the text.
+                            await bot.send_message(
+                                chat_id,
+                                "https://python-telegram-bot.org",
+                                link_preview_options=LinkPreviewOptions(show_above_text=False)
+                            )
+
+                            # The link preview will be shown above the text, but the preview will
+                            # show Telegram.
+                            await bot.send_message(
+                                chat_id,
+                                "https://python-telegram-bot.org",
+                                link_preview_options=LinkPreviewOptions(url="https://telegram.org")
+                            )
+
+            .. versionadded:: 20.8
+        do_quote(:obj:`bool`, optional): |reply_quote|
+
+            .. versionadded:: 20.8
     """
 
     __slots__ = (
-        "_tzinfo",
-        "_disable_web_page_preview",
-        "_block",
-        "_quote",
-        "_disable_notification",
         "_allow_sending_without_reply",
-        "_parse_mode",
         "_api_defaults",
+        "_block",
+        "_disable_notification",
+        "_do_quote",
+        "_link_preview_options",
+        "_parse_mode",
         "_protect_content",
+        "_tzinfo",
     )
 
     def __init__(
@@ -76,42 +137,95 @@ class Defaults:
         disable_notification: Optional[bool] = None,
         disable_web_page_preview: Optional[bool] = None,
         quote: Optional[bool] = None,
-        tzinfo: datetime.tzinfo = UTC,
+        tzinfo: dtm.tzinfo = UTC,
         block: bool = True,
         allow_sending_without_reply: Optional[bool] = None,
         protect_content: Optional[bool] = None,
+        link_preview_options: Optional["LinkPreviewOptions"] = None,
+        do_quote: Optional[bool] = None,
     ):
         self._parse_mode: Optional[str] = parse_mode
         self._disable_notification: Optional[bool] = disable_notification
-        self._disable_web_page_preview: Optional[bool] = disable_web_page_preview
         self._allow_sending_without_reply: Optional[bool] = allow_sending_without_reply
-        self._quote: Optional[bool] = quote
-        self._tzinfo: datetime.tzinfo = tzinfo
+        self._tzinfo: dtm.tzinfo = tzinfo
         self._block: bool = block
         self._protect_content: Optional[bool] = protect_content
 
+        if "pytz" in str(self._tzinfo.__class__):
+            # TODO: When dropping support, make sure to update _utils.datetime accordingly
+            warn(
+                message=PTBDeprecationWarning(
+                    version="21.10",
+                    message=(
+                        "Support for pytz timezones is deprecated and will be removed in "
+                        "future versions."
+                    ),
+                ),
+                stacklevel=2,
+            )
+
+        if disable_web_page_preview is not None and link_preview_options is not None:
+            raise ValueError(
+                "`disable_web_page_preview` and `link_preview_options` are mutually exclusive."
+            )
+        if quote is not None and do_quote is not None:
+            raise ValueError("`quote` and `do_quote` are mutually exclusive")
+        if disable_web_page_preview is not None:
+            warn(
+                PTBDeprecationWarning(
+                    "20.8",
+                    "`Defaults.disable_web_page_preview` is deprecated. Use "
+                    "`Defaults.link_preview_options` instead.",
+                ),
+                stacklevel=2,
+            )
+            self._link_preview_options: Optional[LinkPreviewOptions] = LinkPreviewOptions(
+                is_disabled=disable_web_page_preview
+            )
+        else:
+            self._link_preview_options = link_preview_options
+
+        if quote is not None:
+            warn(
+                PTBDeprecationWarning(
+                    "20.8", "`Defaults.quote` is deprecated. Use `Defaults.do_quote` instead."
+                ),
+                stacklevel=2,
+            )
+            self._do_quote: Optional[bool] = quote
+        else:
+            self._do_quote = do_quote
         # Gather all defaults that actually have a default value
         self._api_defaults = {}
         for kwarg in (
-            "parse_mode",
-            "explanation_parse_mode",
-            "disable_notification",
-            "disable_web_page_preview",
             "allow_sending_without_reply",
+            "disable_notification",
+            "do_quote",
+            "explanation_parse_mode",
+            "link_preview_options",
+            "parse_mode",
+            "text_parse_mode",
             "protect_content",
+            "question_parse_mode",
         ):
             value = getattr(self, kwarg)
             if value is not None:
                 self._api_defaults[kwarg] = value
 
     def __hash__(self) -> int:
+        """Builds a hash value for this object such that the hash of two objects is equal if and
+        only if the objects are equal in terms of :meth:`__eq__`.
+
+        Returns:
+            :obj:`int` The hash value of the object.
+        """
         return hash(
             (
                 self._parse_mode,
                 self._disable_notification,
-                self._disable_web_page_preview,
+                self.disable_web_page_preview,
                 self._allow_sending_without_reply,
-                self._quote,
+                self.quote,
                 self._tzinfo,
                 self._block,
                 self._protect_content,
@@ -119,12 +233,19 @@ class Defaults:
         )
 
     def __eq__(self, other: object) -> bool:
+        """Defines equality condition for the :class:`Defaults` object.
+        Two objects of this class are considered to be equal if all their parameters
+        are identical.
+
+        Returns:
+            :obj:`True` if both objects have all parameters identical. :obj:`False` otherwise.
+        """
         if isinstance(other, Defaults):
             return all(getattr(self, attr) == getattr(other, attr) for attr in self.__slots__)
         return False
 
     @property
-    def api_defaults(self) -> Dict[str, Any]:  # skip-cq: PY-D0003
+    def api_defaults(self) -> dict[str, Any]:  # skip-cq: PY-D0003
         return self._api_defaults
 
     @property
@@ -135,7 +256,7 @@ class Defaults:
         return self._parse_mode
 
     @parse_mode.setter
-    def parse_mode(self, value: object) -> NoReturn:
+    def parse_mode(self, _: object) -> NoReturn:
         raise AttributeError("You can not assign a new value to parse_mode after initialization.")
 
     @property
@@ -146,9 +267,53 @@ class Defaults:
         return self._parse_mode
 
     @explanation_parse_mode.setter
-    def explanation_parse_mode(self, value: object) -> NoReturn:
+    def explanation_parse_mode(self, _: object) -> NoReturn:
         raise AttributeError(
             "You can not assign a new value to explanation_parse_mode after initialization."
+        )
+
+    @property
+    def quote_parse_mode(self) -> Optional[str]:
+        """:obj:`str`: Optional. Alias for :attr:`parse_mode`, used for
+        the corresponding parameter of :meth:`telegram.ReplyParameters`.
+        """
+        return self._parse_mode
+
+    @quote_parse_mode.setter
+    def quote_parse_mode(self, _: object) -> NoReturn:
+        raise AttributeError(
+            "You can not assign a new value to quote_parse_mode after initialization."
+        )
+
+    @property
+    def text_parse_mode(self) -> Optional[str]:
+        """:obj:`str`: Optional. Alias for :attr:`parse_mode`, used for
+        the corresponding parameter of :class:`telegram.InputPollOption` and
+        :meth:`telegram.Bot.send_gift`.
+
+        .. versionadded:: 21.2
+        """
+        return self._parse_mode
+
+    @text_parse_mode.setter
+    def text_parse_mode(self, _: object) -> NoReturn:
+        raise AttributeError(
+            "You can not assign a new value to text_parse_mode after initialization."
+        )
+
+    @property
+    def question_parse_mode(self) -> Optional[str]:
+        """:obj:`str`: Optional. Alias for :attr:`parse_mode`, used for
+        the corresponding parameter of :meth:`telegram.Bot.send_poll`.
+
+        .. versionadded:: 21.2
+        """
+        return self._parse_mode
+
+    @question_parse_mode.setter
+    def question_parse_mode(self, _: object) -> NoReturn:
+        raise AttributeError(
+            "You can not assign a new value to question_parse_mode after initialization."
         )
 
     @property
@@ -159,20 +324,24 @@ class Defaults:
         return self._disable_notification
 
     @disable_notification.setter
-    def disable_notification(self, value: object) -> NoReturn:
+    def disable_notification(self, _: object) -> NoReturn:
         raise AttributeError(
             "You can not assign a new value to disable_notification after initialization."
         )
 
     @property
-    def disable_web_page_preview(self) -> Optional[bool]:
-        """:obj:`bool`: Optional. Disables link previews for links in this
-        message.
+    def disable_web_page_preview(self) -> ODVInput[bool]:
+        """:obj:`bool`: Optional. Disables link previews for links in all outgoing
+        messages.
+
+        .. deprecated:: 20.8
+            Use :attr:`link_preview_options` instead. This attribute will be removed in future
+            versions.
         """
-        return self._disable_web_page_preview
+        return self._link_preview_options.is_disabled if self._link_preview_options else None
 
     @disable_web_page_preview.setter
-    def disable_web_page_preview(self, value: object) -> NoReturn:
+    def disable_web_page_preview(self, _: object) -> NoReturn:
         raise AttributeError(
             "You can not assign a new value to disable_web_page_preview after initialization."
         )
@@ -185,32 +354,34 @@ class Defaults:
         return self._allow_sending_without_reply
 
     @allow_sending_without_reply.setter
-    def allow_sending_without_reply(self, value: object) -> NoReturn:
+    def allow_sending_without_reply(self, _: object) -> NoReturn:
         raise AttributeError(
             "You can not assign a new value to allow_sending_without_reply after initialization."
         )
 
     @property
     def quote(self) -> Optional[bool]:
-        """:obj:`bool`: Optional. If set to :obj:`True`, the reply is sent as an actual reply
-        to the message. If ``reply_to_message_id`` is passed, this parameter will
-        be ignored. Default: :obj:`True` in group chats and :obj:`False` in private chats.
+        """:obj:`bool`: Optional. |reply_quote|
+
+        .. deprecated:: 20.8
+            Use :attr:`do_quote` instead. This attribute will be removed in future
+            versions.
         """
-        return self._quote
+        return self._do_quote if self._do_quote is not None else None
 
     @quote.setter
-    def quote(self, value: object) -> NoReturn:
+    def quote(self, _: object) -> NoReturn:
         raise AttributeError("You can not assign a new value to quote after initialization.")
 
     @property
-    def tzinfo(self) -> datetime.tzinfo:
+    def tzinfo(self) -> dtm.tzinfo:
         """:obj:`tzinfo`: A timezone to be used for all date(time) objects appearing
         throughout PTB.
         """
         return self._tzinfo
 
     @tzinfo.setter
-    def tzinfo(self, value: object) -> NoReturn:
+    def tzinfo(self, _: object) -> NoReturn:
         raise AttributeError("You can not assign a new value to tzinfo after initialization.")
 
     @property
@@ -222,7 +393,7 @@ class Defaults:
         return self._block
 
     @block.setter
-    def block(self, value: object) -> NoReturn:
+    def block(self, _: object) -> NoReturn:
         raise AttributeError("You can not assign a new value to block after initialization.")
 
     @property
@@ -235,7 +406,24 @@ class Defaults:
         return self._protect_content
 
     @protect_content.setter
-    def protect_content(self, value: object) -> NoReturn:
+    def protect_content(self, _: object) -> NoReturn:
         raise AttributeError(
             "You can't assign a new value to protect_content after initialization."
         )
+
+    @property
+    def link_preview_options(self) -> Optional["LinkPreviewOptions"]:
+        """:class:`telegram.LinkPreviewOptions`: Optional. Link preview generation options for all
+        outgoing messages.
+
+        .. versionadded:: 20.8
+        """
+        return self._link_preview_options
+
+    @property
+    def do_quote(self) -> Optional[bool]:
+        """:obj:`bool`: Optional. |reply_quote|
+
+        .. versionadded:: 20.8
+        """
+        return self._do_quote

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 #
 # A library that provides a Python interface to the Telegram Bot API
-# Copyright (C) 2015-2023
+# Copyright (C) 2015-2025
 # Leandro Toledo de Souza <devs@python-telegram-bot.org>
 #
 # This program is free software: you can redistribute it and/or modify
@@ -17,32 +17,19 @@
 # You should have received a copy of the GNU Lesser Public License
 # along with this program.  If not, see [http://www.gnu.org/licenses/].
 """Base class for Telegram Objects."""
-import datetime
+import contextlib
+import datetime as dtm
 import inspect
 import json
-from collections.abc import Sized
+from collections.abc import Iterator, Mapping, Sized
 from contextlib import contextmanager
 from copy import deepcopy
 from itertools import chain
 from types import MappingProxyType
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    ClassVar,
-    Dict,
-    Iterator,
-    List,
-    Mapping,
-    Optional,
-    Set,
-    Tuple,
-    Type,
-    TypeVar,
-    Union,
-    cast,
-)
+from typing import TYPE_CHECKING, Any, ClassVar, Optional, TypeVar, Union, cast
 
 from telegram._utils.datetime import to_timestamp
+from telegram._utils.defaultvalue import DefaultValue
 from telegram._utils.types import JSONDict
 from telegram._utils.warnings import warn
 
@@ -78,7 +65,7 @@ class TelegramObject:
           :obj:`list` are now of type :obj:`tuple`.
 
     Arguments:
-        api_kwargs (Dict[:obj:`str`, any], optional): |toapikwargsarg|
+        api_kwargs (dict[:obj:`str`, any], optional): |toapikwargsarg|
 
             .. versionadded:: 20.0
 
@@ -89,15 +76,15 @@ class TelegramObject:
 
     """
 
-    __slots__ = ("_id_attrs", "_bot", "_frozen", "api_kwargs")
+    __slots__ = ("_bot", "_frozen", "_id_attrs", "api_kwargs")
 
     # Used to cache the names of the parameters of the __init__ method of the class
     # Must be a private attribute to avoid name clashes between subclasses
-    __INIT_PARAMS: ClassVar[Set[str]] = set()
+    __INIT_PARAMS: ClassVar[set[str]] = set()
     # Used to check if __INIT_PARAMS has been set for the current class. Unfortunately, we can't
     # just check if `__INIT_PARAMS is None`, since subclasses use the parent class' __INIT_PARAMS
     # unless it's overridden
-    __INIT_PARAMS_CHECK: Optional[Type["TelegramObject"]] = None
+    __INIT_PARAMS_CHECK: Optional[type["TelegramObject"]] = None
 
     def __init__(self, *, api_kwargs: Optional[JSONDict] = None) -> None:
         # Setting _frozen to `False` here means that classes without arguments still need to
@@ -105,7 +92,7 @@ class TelegramObject:
         # `with self._unfrozen()` in the `__init__` of subclasses and we have fewer empty
         # classes than classes with arguments.
         self._frozen: bool = False
-        self._id_attrs: Tuple[object, ...] = ()
+        self._id_attrs: tuple[object, ...] = ()
         self._bot: Optional[Bot] = None
         # We don't do anything with api_kwargs here - see docstring of _apply_api_kwargs
         self.api_kwargs: Mapping[str, Any] = MappingProxyType(api_kwargs or {})
@@ -261,7 +248,7 @@ class TelegramObject:
                 f"`{item}`."
             ) from exc
 
-    def __getstate__(self) -> Dict[str, Union[str, object]]:
+    def __getstate__(self) -> dict[str, Union[str, object]]:
         """
         Overrides :meth:`object.__getstate__` to customize the pickling process of objects of this
         type.
@@ -269,15 +256,17 @@ class TelegramObject:
         :meth:`set_bot` (if any), as it can't be pickled.
 
         Returns:
-            state (Dict[:obj:`str`, :obj:`object`]): The state of the object.
+            state (dict[:obj:`str`, :obj:`object`]): The state of the object.
         """
-        out = self._get_attrs(include_private=True, recursive=False, remove_bot=True)
+        out = self._get_attrs(
+            include_private=True, recursive=False, remove_bot=True, convert_default_vault=False
+        )
         # MappingProxyType is not pickable, so we convert it to a dict and revert in
         # __setstate__
         out["api_kwargs"] = dict(self.api_kwargs)
         return out
 
-    def __setstate__(self, state: Dict[str, object]) -> None:
+    def __setstate__(self, state: dict[str, object]) -> None:
         """
         Overrides :meth:`object.__setstate__` to customize the unpickling process of objects of
         this type. Modifies the object in-place.
@@ -301,7 +290,7 @@ class TelegramObject:
         self._bot = None
 
         # get api_kwargs first because we may need to add entries to it (see try-except below)
-        api_kwargs = cast(Dict[str, object], state.pop("api_kwargs", {}))
+        api_kwargs = cast(dict[str, object], state.pop("api_kwargs", {}))
         # get _frozen before the loop to avoid setting it to True in the loop
         frozen = state.pop("_frozen", False)
 
@@ -309,7 +298,20 @@ class TelegramObject:
             try:
                 setattr(self, key, val)
             except AttributeError:
-                # catch cases when old attributes are removed from new versions
+                # So an attribute was deprecated and removed from the class. Let's handle this:
+                # 1) Is the attribute now a property with no setter? Let's check that:
+                if isinstance(getattr(self.__class__, key, None), property):
+                    # It is, so let's try to set the "private attribute" instead
+                    try:
+                        setattr(self, f"_{key}", val)
+                    # If this fails as well, guess we've completely removed it. Let's add it to
+                    # api_kwargs as fallback
+                    except AttributeError:
+                        api_kwargs[key] = val
+
+                # 2) The attribute is a private attribute, i.e. it went through case 1) in the past
+                elif key.startswith("_"):
+                    continue  # skip adding this to api_kwargs, the attribute is lost forever.
                 api_kwargs[key] = val  # add it to api_kwargs as fallback
 
         # For api_kwargs we first apply any kwargs that are already attributes of the object
@@ -324,7 +326,7 @@ class TelegramObject:
         if frozen:
             self._freeze()
 
-    def __deepcopy__(self: Tele_co, memodict: Dict[int, object]) -> Tele_co:
+    def __deepcopy__(self: Tele_co, memodict: dict[int, object]) -> Tele_co:
         """
         Customizes how :func:`copy.deepcopy` processes objects of this type.
         The only difference to the default implementation is that the :class:`telegram.Bot`
@@ -337,7 +339,7 @@ class TelegramObject:
             memodict (:obj:`dict`): A dictionary that maps objects to their copies.
 
         Returns:
-            :obj:`telegram.TelegramObject`: The copied object.
+            :class:`telegram.TelegramObject`: The copied object.
         """
         bot = self._bot  # Save bot so we can set it after copying
         self.set_bot(None)  # set to None so it is not deepcopied
@@ -375,29 +377,26 @@ class TelegramObject:
         return result
 
     @staticmethod
-    def _parse_data(data: Optional[JSONDict]) -> Optional[JSONDict]:
+    def _parse_data(data: JSONDict) -> JSONDict:
         """Should be called by subclasses that override de_json to ensure that the input
         is not altered. Whoever calls de_json might still want to use the original input
         for something else.
         """
-        return None if data is None else data.copy()
+        return data.copy()
 
     @classmethod
     def _de_json(
-        cls: Type[Tele_co],
-        data: Optional[JSONDict],
-        bot: "Bot",
+        cls: type[Tele_co],
+        data: JSONDict,
+        bot: Optional["Bot"],
         api_kwargs: Optional[JSONDict] = None,
-    ) -> Optional[Tele_co]:
-        if data is None:
-            return None
-
+    ) -> Tele_co:
         # try-except is significantly faster in case we already have a correct argument set
         try:
             obj = cls(**data, api_kwargs=api_kwargs)
         except TypeError as exc:
             if "__init__() got an unexpected keyword argument" not in str(exc):
-                raise exc
+                raise
 
             if cls.__INIT_PARAMS_CHECK is not cls:
                 signature = inspect.signature(cls)
@@ -415,12 +414,16 @@ class TelegramObject:
         return obj
 
     @classmethod
-    def de_json(cls: Type[Tele_co], data: Optional[JSONDict], bot: "Bot") -> Optional[Tele_co]:
+    def de_json(cls: type[Tele_co], data: JSONDict, bot: Optional["Bot"] = None) -> Tele_co:
         """Converts JSON data to a Telegram object.
 
         Args:
-            data (Dict[:obj:`str`, ...]): The JSON data.
-            bot (:class:`telegram.Bot`): The bot associated with this object.
+            data (dict[:obj:`str`, ...]): The JSON data.
+            bot (:class:`telegram.Bot`, optional): The bot associated with this object. Defaults to
+                :obj:`None`, in which case shortcut methods will not be available.
+
+                .. versionchanged:: 21.4
+                   :paramref:`bot` is now optional and defaults to :obj:`None`
 
         Returns:
             The Telegram object.
@@ -430,8 +433,8 @@ class TelegramObject:
 
     @classmethod
     def de_list(
-        cls: Type[Tele_co], data: Optional[List[JSONDict]], bot: "Bot"
-    ) -> Tuple[Tele_co, ...]:
+        cls: type[Tele_co], data: list[JSONDict], bot: Optional["Bot"] = None
+    ) -> tuple[Tele_co, ...]:
         """Converts a list of JSON objects to a tuple of Telegram objects.
 
         .. versionchanged:: 20.0
@@ -440,17 +443,18 @@ class TelegramObject:
            * Filters out any :obj:`None` values.
 
         Args:
-            data (List[Dict[:obj:`str`, ...]]): The JSON data.
-            bot (:class:`telegram.Bot`): The bot associated with these objects.
+            data (list[dict[:obj:`str`, ...]]): The JSON data.
+            bot (:class:`telegram.Bot`, optional): The bot associated with these object. Defaults
+                to :obj:`None`, in which case shortcut methods will not be available.
+
+                .. versionchanged:: 21.4
+                   :paramref:`bot` is now optional and defaults to :obj:`None`
 
         Returns:
             A tuple of Telegram objects.
 
         """
-        if not data:
-            return ()
-
-        return tuple(obj for obj in (cls.de_json(d, bot) for d in data) if obj is not None)
+        return tuple(cls.de_json(d, bot) for d in data)
 
     @contextmanager
     def _unfrozen(self: Tele_co) -> Iterator[Tele_co]:
@@ -487,7 +491,12 @@ class TelegramObject:
         """
         # we convert to list to ensure that the list doesn't change length while we loop
         for key in list(api_kwargs.keys()):
-            if getattr(self, key, True) is None:
+            # property attributes are not settable, so we need to set the private attribute
+            if isinstance(getattr(self.__class__, key, None), property):
+                # if setattr fails, we'll just leave the value in api_kwargs:
+                with contextlib.suppress(AttributeError):
+                    setattr(self, f"_{key}", api_kwargs.pop(key))
+            elif getattr(self, key, True) is None:
                 setattr(self, key, api_kwargs.pop(key))
 
     def _get_attrs_names(self, include_private: bool) -> Iterator[str]:
@@ -519,7 +528,8 @@ class TelegramObject:
         include_private: bool = False,
         recursive: bool = False,
         remove_bot: bool = False,
-    ) -> Dict[str, Union[str, object]]:
+        convert_default_vault: bool = True,
+    ) -> dict[str, Union[str, object]]:
         """This method is used for obtaining the attributes of the object.
 
         Args:
@@ -527,6 +537,10 @@ class TelegramObject:
             recursive (:obj:`bool`): If :obj:`True`, will convert any ``TelegramObjects`` (if
                 found) in the attributes to a dictionary. Else, preserves it as an object itself.
             remove_bot (:obj:`bool`): Whether the bot should be included in the result.
+            convert_default_vault (:obj:`bool`): Whether :class:`telegram.DefaultValue` should be
+                converted to its true value. This is necessary when converting to a dictionary for
+                end users since DefaultValue is used in some classes that work with
+                `tg.ext.defaults` (like `LinkPreviewOptions`)
 
         Returns:
             :obj:`dict`: A dict where the keys are attribute names and values are their values.
@@ -534,7 +548,12 @@ class TelegramObject:
         data = {}
 
         for key in self._get_attrs_names(include_private=include_private):
-            value = getattr(self, key, None)
+            value = (
+                DefaultValue.get_value(getattr(self, key, None))
+                if convert_default_vault
+                else getattr(self, key, None)
+            )
+
             if value is not None:
                 if recursive and hasattr(value, "to_dict"):
                     data[key] = value.to_dict(recursive=True)
@@ -583,7 +602,7 @@ class TelegramObject:
         # Now we should convert TGObjects to dicts inside objects such as sequences, and convert
         # datetimes to timestamps. This mostly eliminates the need for subclasses to override
         # `to_dict`
-        pop_keys: Set[str] = set()
+        pop_keys: set[str] = set()
         for key, value in out.items():
             if isinstance(value, (tuple, list)):
                 if not value:
@@ -595,7 +614,7 @@ class TelegramObject:
                 for item in value:
                     if hasattr(item, "to_dict"):
                         val.append(item.to_dict(recursive=recursive))
-                    # This branch is useful for e.g. Tuple[Tuple[PhotoSize|KeyboardButton]]
+                    # This branch is useful for e.g. tuple[tuple[PhotoSize|KeyboardButton]]
                     elif isinstance(item, (tuple, list)):
                         val.append(
                             [
@@ -607,8 +626,10 @@ class TelegramObject:
                         val.append(item)
                 out[key] = val
 
-            elif isinstance(value, datetime.datetime):
+            elif isinstance(value, dtm.datetime):
                 out[key] = to_timestamp(value)
+            elif isinstance(value, dtm.timedelta):
+                out[key] = value.total_seconds()
 
         for key in pop_keys:
             out.pop(key)
